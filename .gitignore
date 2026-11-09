@@ -1,12 +1,19 @@
+# Environment variables
+.env
+.env.*
+
 # Database credentials
 config/db.php
-
-# Environment files
-.env
 
 # Logs
 *.log
 
 # Temporary files
+*.tmp
+
+# Operating system files
 .DS_Store
 Thumbs.db
+
+# Editor settings
+.vscode/

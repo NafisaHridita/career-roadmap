@@ -34,16 +34,20 @@ The project uses MySQL to store user accounts, quiz questions, career informatio
 Database name: `career_roadmap`
 Database structure can be imported using `database.sql`.
 
-6. Installation and Setup
-1. Install XAMPP.
-2. Clone or download this repository.
-3. Place the project folder inside `htdocs`.
-4. Start Apache and MySQL from XAMPP.
-5. Open phpMyAdmin.
-6. Create a database named `career_roadmap`.
-7. Import the `database.sql` file.
-8. Configure the database connection in the project.
-9. Open the project in your browser.
+6. Database Setup
 
-7. Project Purpose
+i. Open XAMPP Control Panel.
+ii. Start Apache and MySQL.
+iii. Open phpMyAdmin.
+iv. Create a database named `career_roadmap`.
+v. Select the database.
+vi. Import the `database.sql` file.
+vii. Configure your local database connection.
+viii. Run the project through localhost.
+
+7. Local Project URL
+
+`http://localhost/CareerRoadmap/`
+
+8. Project Purpose
 Career Roadmap aims to support students in making informed career decisions through career exploration, skill assessment, personalized learning guidance, and AI assistance.
