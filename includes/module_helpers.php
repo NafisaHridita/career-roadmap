@@ -1,0 +1,58 @@
+<?php
+function ensureUserApprovalColumn(mysqli $conn): bool
+{
+    $result = $conn->query("SHOW COLUMNS FROM users LIKE 'account_status'");
+    if ($result && $result->num_rows > 0) return true;
+    // Existing accounts remain usable; only new registrations are pending.
+    return (bool) $conn->query("ALTER TABLE users ADD COLUMN account_status ENUM('pending','approved') NOT NULL DEFAULT 'approved'");
+}
+
+function ensureCareerTables(mysqli $conn): bool
+{
+    return (bool) $conn->query("CREATE TABLE IF NOT EXISTS careers (
+        career_id INT AUTO_INCREMENT PRIMARY KEY,
+        career_name VARCHAR(150) NOT NULL,
+        description TEXT NULL,
+        required_skills TEXT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+function ensureRecommendationTable(mysqli $conn): bool
+{
+    return (bool) $conn->query("CREATE TABLE IF NOT EXISTS career_recommendations (
+        recommendation_id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        result_text MEDIUMTEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX (user_id),
+        INDEX (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+function ensureAdminProfileTable(mysqli $conn): bool
+{
+    return (bool) $conn->query("CREATE TABLE IF NOT EXISTS admin_profiles (
+        user_id INT PRIMARY KEY,
+        phone VARCHAR(40) NULL,
+        website VARCHAR(255) NULL,
+        linkedin_url VARCHAR(255) NULL,
+        github_url VARCHAR(255) NULL,
+        photo_path VARCHAR(255) NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+function ensureAdminSocialLinksTable(mysqli $conn): bool
+{
+    return (bool) $conn->query("CREATE TABLE IF NOT EXISTS admin_profile_social_links (
+        link_id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        app_name VARCHAR(80) NOT NULL,
+        profile_url VARCHAR(500) NULL,
+        username VARCHAR(120) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+?>

@@ -51,3 +51,12 @@ viii. Run the project through localhost.
 
 8. Project Purpose
 Career Roadmap aims to support students in making informed career decisions through career exploration, skill assessment, personalized learning guidance, and AI assistance.
+
+9. Feature Modules
+
+- `ai/` contains reusable Ollama configuration and generation logic. Student and Admin pages call these functions instead of repeating AI request code.
+- `career/` contains Student-facing career browsing, career details, required skills, quiz recommendation history, and AI-generated learning roadmaps.
+- `admin/careers.php` is the Admin interface for maintaining career descriptions and required skills. These records appear in the `career/` pages.
+- `student/ai_assistant.php` remains the AI Assistant page and uses the shared function in `ai/career_assistant.php`.
+
+Career and recommendation tables are created by the application when their modules are first opened. Keep Ollama running with the configured model for AI generation features.

@@ -2,6 +2,7 @@
 <?php
 session_start();
 require_once "../config/db.php";
+require_once "../ai/career_assistant.php";
 
 $response = "";
 $error = "";
@@ -13,60 +14,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($question === "") {
         $error = "Please enter a question.";
     } else {
-
-        $data = [
-            "model" => "qwen2.5:0.5b",
-            "prompt" => "You are CareerExplorer AI Career Assistant.
-Give simple, helpful and accurate career guidance to students.
-
-Student question: " . $question,
-            "stream" => false
-        ];
-
-       /* $ch = curl_init("http://localhost:11434/api/generate");
-
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "Content-Type: application/json"
-        ]);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 120);
-
-        $result = curl_exec($ch);
-
-        if (curl_errno($ch)) {
-            $error = "AI connection error: " . curl_error($ch);
-        } else {
-            $resultData = json_decode($result, true);
-            $response = $resultData["response"] ?? "No response received.";
-        }
-
-        curl_close($ch); */
-
-        $options = [
-    "http" => [
-        "header" => "Content-Type: application/json\r\n",
-        "method" => "POST",
-        "content" => json_encode($data),
-        "timeout" => 120
-    ]
-];
-
-$context = stream_context_create($options);
-
-$result = file_get_contents(
-    "http://localhost:11434/api/generate",
-    false,
-    $context
-);
-
-if ($result === false) {
-    $error = "AI connection failed. Check Ollama.";
-} else {
-    $resultData = json_decode($result, true);
-    $response = $resultData["response"] ?? "No response received.";
-}
+        $answer = careerAiAssistantReply($question);
+        if ($answer['ok']) $response = $answer['text'];
+        else $error = $answer['error'];
     }
 }
 ?>
@@ -118,9 +68,10 @@ if ($result === false) {
             color: red;
         }
     </style>
+<link rel="stylesheet" href="../assets/cute-theme.css">
 </head>
 
-<body>
+<body class="neon-app">
 
 <div class="container">
 

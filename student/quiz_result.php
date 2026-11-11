@@ -6,6 +6,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'student') {
     header("Location: ../login.php");
     exit();
 }
+require_once '../config/db.php';
+require_once '../includes/module_helpers.php';
+require_once '../ai/generate_recommendation.php';
 
 ini_set('max_execution_time', 180);
 
@@ -14,6 +17,7 @@ $questions = $_SESSION['quiz_questions'] ?? [];
 
 $result = "";
 $error = "";
+$saveError = "";
 
 if (empty($answers) || empty($questions)) {
     $error = "Quiz data missing. Please generate a new quiz.";
@@ -31,70 +35,19 @@ if (empty($answers) || empty($questions)) {
             "Student Answer: " . $answer . "\n\n";
     }
 
-    $prompt = "
-You are a professional AI career counselor.
-
-Analyze the student's actual quiz questions and answers.
-
-$answerText
-
-IMPORTANT:
-- Recommend exactly 5 REAL job professions.
-- Never use hobbies or activities as career names.
-- Use actual job titles such as Software Developer,
-  Web Developer, Data Analyst, Graphic Designer,
-  Teacher, Civil Engineer or Digital Marketer.
-- Select careers based on the student's answers.
-- Explain why each career may fit.
-
-Give these sections:
-
-1. TOP 5 RECOMMENDED CAREERS
-2. WHY THESE CAREERS FIT
-3. REQUIRED SKILLS
-4. SKILL GAP ANALYSIS
-5. BEGINNER LEARNING ROADMAP
-6. FINAL CAREER ADVICE
-
-Give practical, clear English.
-Do not claim that a short quiz determines someone's future.
-";
-
-    $data = [
-        "model" => "qwen2.5:0.5b",
-        "prompt" => $prompt,
-        "stream" => false,
-        "options" => [
-            "temperature" => 0.3,
-            "num_predict" => 900
-        ]
-    ];
-
-    $options = [
-        "http" => [
-            "header" => "Content-Type: application/json\r\n",
-            "method" => "POST",
-            "content" => json_encode($data),
-            "timeout" => 180
-        ]
-    ];
-
-    $context = stream_context_create($options);
-
-    $response = @file_get_contents(
-        "http://localhost:11434/api/generate",
-        false,
-        $context
-    );
-
-    if ($response === false) {
-        $error = "AI connection failed. Please check Ollama.";
+    $recommendation = careerAiGenerateRecommendation($answerText);
+    if (!$recommendation['ok']) {
+        $error = $recommendation['error'];
     } else {
-        $responseData = json_decode($response, true);
-        $result = $responseData["response"] ?? "";
-
-        if (empty($result)) {
-            $error = "AI could not generate a result.";
+        $result = $recommendation['text'];
+        if (ensureRecommendationTable($conn)) {
+            $userId = (int) $_SESSION['user_id'];
+            $save = $conn->prepare('INSERT INTO career_recommendations (user_id, result_text) VALUES (?, ?)');
+            $save->bind_param('is', $userId, $result);
+            if (!$save->execute()) $saveError = 'Your result was created, but could not be saved to history.';
+            $save->close();
+        } else {
+            $saveError = 'Your result was created, but recommendation history could not be prepared.';
         }
     }
 }
@@ -103,26 +56,30 @@ Do not claim that a short quiz determines someone's future.
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>AI Career Analysis</title>
+    <style>body{margin:0;min-height:100vh;padding:36px 18px;background:linear-gradient(135deg,#faf6ff,#fff8fb 60%,#eff8ff);font:16px Inter,"Segoe UI",Arial,sans-serif;color:#382d48}.report{max-width:900px;margin:0 auto}.report-head{padding:30px;background:linear-gradient(120deg,#f1e8ff,#fff0f5);border:1px solid #eee3f5;border-radius:24px;margin-bottom:18px}.report-head h1{margin:0 0 8px;color:#4c3264}.report-head p{margin:0;color:#766d80}.result-card{background:#fff;border:1px solid #eeeaf3;border-radius:20px;padding:26px;line-height:1.75;box-shadow:0 8px 24px #48345c0a}.result-text{white-space:pre-wrap}.notice{padding:12px;border-radius:10px;background:#fff1f0;color:#a8332d}.back{display:inline-block;margin-top:18px;padding:11px 16px;border-radius:22px;background:#7550a5;color:white;text-decoration:none;font-weight:700}</style>
+<link rel="stylesheet" href="../assets/cute-theme.css">
 </head>
-<body>
-
-<h1>Your AI Career Analysis</h1>
+<body class="neon-app">
+<main class="report"><header class="report-head"><h1>✨ Your Career Snapshot</h1><p>A starting point for exploring what may fit you.</p></header>
 
 <?php if ($error): ?>
 
-    <p><?php echo htmlspecialchars($error); ?></p>
+    <p class="notice"><?php echo htmlspecialchars($error); ?></p>
 
 <?php else: ?>
 
-    <div>
+    <?php if ($saveError): ?><p class="notice"><?php echo htmlspecialchars($saveError); ?></p><?php endif; ?>
+
+    <div class="result-card result-text">
         <?php echo nl2br(htmlspecialchars($result)); ?>
     </div>
 
 <?php endif; ?>
 
-<br>
-<a href="dashboard.php">Back to Dashboard</a>
+<a class="back home-button" href="dashboard.php">⌂ Home</a></main>
 
 </body>
 </html>

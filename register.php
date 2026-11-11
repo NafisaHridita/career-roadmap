@@ -1,6 +1,8 @@
 
 <?php
 include 'config/db.php';
+require_once 'includes/module_helpers.php';
+if (!ensureUserApprovalColumn($conn)) die('Could not prepare student approval status. Check database permissions.');
 
 $message = "";
 
@@ -16,14 +18,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
         $stmt = $conn->prepare(
-            "INSERT INTO users (name, email, password, role)
-             VALUES (?, ?, ?, 'student')"
+            "INSERT INTO users (name, email, password, role, account_status)
+             VALUES (?, ?, ?, 'student', 'pending')"
         );
 
         $stmt->bind_param("sss", $name, $email, $hashed_password);
 
         if ($stmt->execute()) {
-            header("Location: login.php?registered=1");
+            header("Location: login.php?registered=pending");
             exit();
         } else {
             $message = "Email already exists or registration failed!";
@@ -34,32 +36,73 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 }
 ?>
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Student Registration</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create account | CareerRoadmap</title>
+    <style>
+        *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:26px;background:radial-gradient(circle at 90% 12%,#f3e8ff 0,transparent 28%),#f7f6fb;color:#28213a;font-family:Inter,Segoe UI,Arial,sans-serif}
+        .shell{width:min(980px,100%);display:grid;grid-template-columns:1fr 1.05fr;background:#fff;border:1px solid #eee8f5;border-radius:26px;overflow:hidden;box-shadow:0 24px 70px #39245d1c}
+        .welcome{position:relative;overflow:hidden;min-height:620px;padding:46px;background:linear-gradient(145deg,#492181,#7545b5 58%,#a17bd4);color:#fff;display:flex;flex-direction:column;justify-content:space-between}
+        .welcome:before,.welcome:after{content:"";position:absolute;border-radius:50%;background:#ffffff12}.welcome:before{width:330px;height:330px;right:-145px;top:-130px}.welcome:after{width:270px;height:270px;left:-145px;bottom:-145px}
+        .brand,.welcome-copy,.note{position:relative;z-index:1}.brand{font-size:20px;font-weight:750}.brand-mark{display:inline-grid;place-items:center;width:35px;height:35px;margin-right:9px;border-radius:11px;background:#ffffff24;vertical-align:middle}
+        .welcome-copy{margin:auto 0}.eyebrow{text-transform:uppercase;letter-spacing:2px;font-size:12px;color:#e3d4fa;font-weight:700}.welcome h1{font-size:42px;line-height:1.12;margin:15px 0}.welcome-copy p{max-width:360px;color:#eee5fa;line-height:1.7}
+        .note{padding:13px 15px;border-radius:12px;background:#ffffff18;border:1px solid #ffffff30;color:#fff;line-height:1.5}
+        .form-side{padding:48px 60px;display:flex;flex-direction:column;justify-content:center}.form-side h2{font-size:30px;margin:0 0 8px}.subtitle{color:#777386;margin:0 0 25px;line-height:1.5}
+        .error{padding:11px 13px;border-radius:10px;margin:0 0 14px;background:#fff1f0;color:#a8332d;border:1px solid #f6d0cd}
+        label{display:block;font-size:14px;font-weight:650;color:#39354a;margin:17px 0 7px}input{width:100%;height:49px;padding:0 14px;border:1px solid #ded9e8;border-radius:10px;font-size:15px;color:#28213a;outline:none;transition:.18s}input:focus{border-color:#8054bd;box-shadow:0 0 0 4px #8054bd20}
+        .password-wrap{position:relative}.password-wrap input{padding-right:72px}.show-password{position:absolute;right:8px;top:7px;height:35px;border:0;border-radius:8px;background:#f4effa;color:#69429d;padding:0 10px;font-weight:650;cursor:pointer}
+        .submit{width:100%;height:51px;border:0;border-radius:10px;margin-top:24px;background:linear-gradient(100deg,#583092,#7746b2);color:#fff;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 8px 18px #65409b30}.login{margin:22px 0 0;text-align:center;color:#777386;font-size:14px}a{color:#68409e;font-weight:700;text-decoration:none}a:hover{text-decoration:underline}
+        @media(max-width:760px){body{padding:14px}.shell{grid-template-columns:1fr}.welcome{min-height:230px;padding:25px 28px}.welcome-copy{margin:28px 0 0}.welcome h1{font-size:32px}.form-side{padding:32px 28px 38px}}
+    </style>
+<link rel="stylesheet" href="assets/cute-theme.css">
+<style>
+    .shell{animation:card-arrive .8s cubic-bezier(.2,.75,.25,1) both;transform-origin:center}
+    .welcome:before{animation:orb-drift 11s ease-in-out infinite alternate}
+    .welcome:after{animation:orb-drift 13s ease-in-out infinite alternate-reverse}
+    .welcome-copy{animation:soft-rise .75s .12s both}
+    .brand-mark{transition:transform .35s,box-shadow .35s}.brand:hover .brand-mark{transform:rotate(-12deg) scale(1.08);box-shadow:0 0 22px #fff5}
+    .note{animation:soft-rise .65s .28s both}
+    .form-side{animation:form-arrive .7s .16s both}
+    .form-side input{transition:border-color .2s,box-shadow .2s,transform .2s}
+    .form-side input:hover{border-color:#c6b1df}
+    .form-side input:focus{transform:translateY(-1px)}
+    .form-side form>label:nth-of-type(1){animation:soft-rise .45s .2s both}
+    .form-side form>input:nth-of-type(1){animation:soft-rise .45s .25s both}
+    .form-side form>label:nth-of-type(2){animation:soft-rise .45s .3s both}
+    .form-side form>input:nth-of-type(2){animation:soft-rise .45s .35s both}
+    .password-wrap{animation:soft-rise .45s .42s both}
+    .submit{background-size:200% 200%;background-position:0% 50%;transition:background-position .45s,transform .2s,box-shadow .2s}
+    .submit:hover{background-position:100% 50%;transform:translateY(-2px);box-shadow:0 13px 25px #65409b45}
+    .login a{transition:color .2s}.login a:hover{color:#a15ac2}
+    @keyframes card-arrive{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @keyframes soft-rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes form-arrive{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes orb-drift{from{transform:translate3d(0,0,0) scale(.96)}to{transform:translate3d(-18px,16px,0) scale(1.06)}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
+</style>
 </head>
 <body>
-
-<h2>Student Registration</h2>
-
-<p><?php echo htmlspecialchars($message); ?></p>
-
-<form method="POST">
-    <label>Full Name:</label><br>
-    <input type="text" name="name" required><br><br>
-
-    <label>Email:</label><br>
-    <input type="email" name="email" required><br><br>
-
-    <label>Password:</label><br>
-    <input type="password" name="password" required minlength="6"><br><br>
-
-    <button type="submit">Register</button>
-</form>
-
-<p>Already have an account? <a href="login.php">Login</a></p>
-
+    <main class="shell">
+        <section class="welcome">
+            <a class="brand" href="index.php"><span class="brand-mark">↗</span>CareerRoadmap</a>
+            <div class="welcome-copy"><div class="eyebrow">A little step toward your future</div><h1>Your journey<br>starts here.</h1><p>Create an account to explore careers, discover your skills, and plan what comes next.</p></div>
+            <p class="note">✨ Everyone is welcome. Register and log in to get started.</p>
+        </section>
+        <section class="form-side">
+            <h2>Create your account</h2><p class="subtitle">Set up your student profile in just a few steps.</p>
+            <?php if ($message): ?><p class="error" role="alert"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+            <form method="post">
+                <label for="name">Full name</label><input id="name" type="text" name="name" autocomplete="name" maxlength="150" required value="<?= htmlspecialchars($_POST['name'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="Your name">
+                <label for="email">Email address</label><input id="email" type="email" name="email" autocomplete="email" required value="<?= htmlspecialchars($_POST['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="you@example.com">
+                <label for="password">Password</label><div class="password-wrap"><input id="password" type="password" name="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters"><button class="show-password" type="button" id="togglePassword">Show</button></div>
+                <button class="submit" type="submit">Create account</button>
+            </form>
+            <p class="login">Already have an account? <a href="login.php">Log in</a></p>
+        </section>
+    </main>
+    <script>document.getElementById('togglePassword').addEventListener('click',function(){const input=document.getElementById('password'),showing=input.type==='password';input.type=showing?'text':'password';this.textContent=showing?'Hide':'Show';});</script>
 </body>
 </html>
