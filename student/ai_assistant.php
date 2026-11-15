@@ -1,4 +1,4 @@
-
+﻿
 <?php
 session_start();
 require_once "../config/db.php";
@@ -68,10 +68,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             color: red;
         }
     </style>
-<link rel="stylesheet" href="../assets/cute-theme.css">
-</head>
+<link rel="stylesheet" href="../assets/cute-theme.css?v=20261115-motion3">
+<link rel="stylesheet" href="../assets/glass-surfaces.css?v=20261115-student-home"></head>
 
-<body class="neon-app">
+<body class="neon-app student-assistant-page">
+
+<a href="dashboard.php" class="home-button assistant-home">⌂ Home</a>
 
 <div class="container">
 

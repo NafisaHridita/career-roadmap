@@ -32,15 +32,23 @@ function ensureRecommendationTable(mysqli $conn): bool
 
 function ensureAdminProfileTable(mysqli $conn): bool
 {
-    return (bool) $conn->query("CREATE TABLE IF NOT EXISTS admin_profiles (
+    $created = (bool) $conn->query("CREATE TABLE IF NOT EXISTS admin_profiles (
         user_id INT PRIMARY KEY,
         phone VARCHAR(40) NULL,
         website VARCHAR(255) NULL,
         linkedin_url VARCHAR(255) NULL,
         github_url VARCHAR(255) NULL,
         photo_path VARCHAR(255) NULL,
+        space_label VARCHAR(40) NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    if (!$created) return false;
+
+    // Add the editable profile title to installations that already have this table.
+    $column = $conn->query("SHOW COLUMNS FROM admin_profiles LIKE 'space_label'");
+    if (!$column) return false;
+    if ($column->num_rows === 0 && !$conn->query('ALTER TABLE admin_profiles ADD COLUMN space_label VARCHAR(40) NULL')) return false;
+    return true;
 }
 
 function ensureAdminSocialLinksTable(mysqli $conn): bool

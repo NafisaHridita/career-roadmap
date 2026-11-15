@@ -1,4 +1,4 @@
-
+﻿
 <?php
 session_start();
 
@@ -35,7 +35,7 @@ if (ensureAdminProfileTable($conn)) {
         .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.card{position:relative;overflow:hidden;background:#fff;border:1px solid #eeeaf3;border-radius:22px;padding:25px;min-height:215px;box-shadow:0 8px 24px #48345c0a;transition:transform .18s,box-shadow .18s}.card:hover{transform:translateY(-3px);box-shadow:0 14px 30px #48345c16}.card-top{display:flex;align-items:center;gap:13px}.icon{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;font-size:24px}.students .icon{background:#e6f6ee}.quiz .icon{background:#fff1dc}.careers .icon{background:#e9f1ff}.recommendations .icon{background:#fbe9f3}.card h2{font-size:19px;margin:0;color:#40364d}.card p{color:#81798b;line-height:1.55;margin:15px 0 18px}.actions{display:flex;flex-wrap:wrap;gap:9px}.actions a{display:inline-block;padding:9px 12px;border-radius:20px;background:#f4eff9;color:#63408b;text-decoration:none;font-size:13px;font-weight:700}.actions a:hover{background:#eaddf4}.students .actions a{background:#e9f7ef;color:#347754}.quiz .actions a{background:#fff4e3;color:#916022}.careers .actions a{background:#edf3ff;color:#4268a5}.recommendations .actions a{background:#fff0f6;color:#a34d77}
         @media(max-width:720px){.topbar{height:66px}.main{margin-top:22px}.hero{padding:27px 24px}.hero:after{right:12px;top:10px;font-size:60px}.hero h1{font-size:27px}.grid{grid-template-columns:1fr}.card{min-height:0}}
     </style>
-<link rel="stylesheet" href="../assets/cute-theme.css">
+<link rel="stylesheet" href="../assets/cute-theme.css?v=20261115-motion3">
 <style>
     body{background:#090e1b;background-image:radial-gradient(ellipse at 12% 0%,#321e5f 0,transparent 34%),radial-gradient(ellipse at 92% 28%,#07364a 0,transparent 30%),linear-gradient(135deg,#090e1b,#10172a 58%,#111226);color:#e9edff}
     .topbar{background:rgba(10,15,29,.88);border-color:#26304a;box-shadow:0 8px 30px #05091455}
@@ -49,8 +49,8 @@ if (ensureAdminProfileTable($conn)) {
     .card h2{color:#eff2ff}.card p{color:#aab5cf}.students .icon{background:#102f31;color:#72f1c3;box-shadow:inset 0 0 0 1px #246456}.quiz .icon{background:#382e19;color:#ffdc7a;box-shadow:inset 0 0 0 1px #645126}.careers .icon{background:#172c46;color:#8ac5ff;box-shadow:inset 0 0 0 1px #31547b}.recommendations .icon{background:#372139;color:#ffadd8;box-shadow:inset 0 0 0 1px #68406b}
     .actions a{border:1px solid #384363;background:#202941;color:#d5dbf2}.actions a:hover{filter:brightness(1.2);background:#293654}.students .actions a{background:#102d2c;color:#75f0c1;border-color:#28554d}.quiz .actions a{background:#342c18;color:#ffdb78;border-color:#63512a}.careers .actions a{background:#16283c;color:#91c7ff;border-color:#34516f}.recommendations .actions a{background:#342039;color:#f4a8d4;border-color:#654067}
 </style>
-</head>
-<body><a class="admin-home-icon" href="dashboard.php" aria-label="Admin dashboard" title="Admin dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3.5 10 8.5-7 8.5 7"/><path d="M5.5 9v11h13V9M9 20v-6h6v6"/></svg></a>
+<link rel="stylesheet" href="../assets/glass-surfaces.css?v=20261115-2218"></head>
+<body class="neon-app admin-dashboard-page"><a class="admin-home-icon" href="dashboard.php" aria-label="Admin dashboard" title="Admin dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3.5 10 8.5-7 8.5 7"/><path d="M5.5 9v11h13V9M9 20v-6h6v6"/></svg></a>
     <nav class="topbar">
         <a class="brand" href="../index.php"><span class="brand-mark">↗</span>CareerRoadmap</a>
         <div class="admin-tools">
@@ -63,7 +63,7 @@ if (ensureAdminProfileTable($conn)) {
         <section class="hero"><div class="eyebrow">Your workspace ✨</div><h1>Welcome, <?= htmlspecialchars($_SESSION['name'], ENT_QUOTES, 'UTF-8') ?>!</h1><p>Here’s your CareerRoadmap control center. Pick a space to manage students, quiz questions, careers, and recommendations.</p></section>
         <section class="grid">
             <article class="card students"><div class="card-top"><span class="icon">🌱</span><h2>Student Management</h2></div><p>Review new registrations and choose which students to save to your list.</p><div class="actions"><a href="students.php">Student approvals</a><a href="students_list.php">See Student List</a></div></article>
-            <article class="card quiz"><div class="card-top"><span class="icon">📝</span><h2>AI Career Quiz</h2></div><p>Generate questions, then edit and review them before students see them.</p><div class="actions"><a href="add_question.php">Generate questions</a><a href="manage_questions.php">Review questions</a></div></article>
+            <article class="card quiz"><div class="card-top"><span class="icon">📝</span><h2>AI Career Quiz</h2></div><p>Generate questions, review drafts, and manage approved questions.</p><div class="actions"><a href="add_question.php">Generate questions</a><a href="manage_questions.php">Review questions</a><a href="question_list.php">Question List</a></div></article>
             <article class="card careers"><div class="card-top"><span class="icon">🌷</span><h2>Career Management</h2></div><p>Add career paths and keep their descriptions and required skills up to date.</p><div class="actions"><a href="careers.php">Manage careers and skills</a></div></article>
             <article class="card recommendations"><div class="card-top"><span class="icon">💌</span><h2>AI Recommendations</h2></div><p>Browse the career analyses students have received from the quiz.</p><div class="actions"><a href="recommendations.php">View recommendations</a></div></article>
         </section>

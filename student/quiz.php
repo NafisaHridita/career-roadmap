@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'student') { header('Location: ../login.php'); exit(); }
 require_once '../config/db.php';
@@ -60,7 +60,7 @@ $escape = static fn($value) => htmlspecialchars((string)$value, ENT_QUOTES, 'UTF
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Career Interest Quiz</title>
-    <link rel="stylesheet" href="../assets/cute-theme.css">
+    <link rel="stylesheet" href="../assets/cute-theme.css?v=20261115-motion3">
     <style>
         body{margin:0;min-height:100vh;padding:32px 18px;font-family:Inter,"Segoe UI",Arial,sans-serif}
         .quiz-shell{width:min(760px,100%);margin:20px auto;padding:clamp(22px,5vw,42px);border:1px solid #344363;border-radius:26px;background:linear-gradient(145deg,rgba(18,25,45,.97),rgba(14,21,38,.97));box-shadow:0 20px 70px #02061188,0 0 32px #7761ff20;animation:neonRise .35s ease both}
@@ -69,7 +69,7 @@ $escape = static fn($value) => htmlspecialchars((string)$value, ENT_QUOTES, 'UTF
         .progress-track{height:8px;margin:0 0 30px;overflow:hidden;border-radius:999px;background:#202a43}.progress-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#57e9d7,#9a7cff);box-shadow:0 0 16px #69e8dd77;transition:width .35s ease}
         .question-card{padding:clamp(20px,4vw,30px);border:1px solid #344363;border-radius:20px;background:linear-gradient(145deg,#141e34,#111a2e)}.question-card h2{margin:0 0 22px;font-size:clamp(1.2rem,3vw,1.55rem);line-height:1.5}
         .choice-list{display:grid;gap:12px}.choice{position:relative;display:flex;align-items:center;gap:13px;min-height:56px;padding:12px 16px;border:1px solid #344363;border-radius:15px;background:#0d1629;color:#dfe7ff;cursor:pointer;transition:border-color .18s ease,background .18s ease,transform .18s ease,box-shadow .18s ease}.choice:hover{transform:translateY(-1px);border-color:#67dcd6;background:#102335}.choice:has(input:checked){border-color:#74f0e1;background:linear-gradient(100deg,#12312f,#1d2440);box-shadow:0 0 18px #5ce7d522}.choice input{accent-color:#6de8db;width:18px;height:18px;flex:0 0 auto}.choice-label{display:grid;place-items:center;min-width:32px;height:32px;border:1px solid #39546d;border-radius:10px;color:#8ff4e6;font-weight:800}
-        .quiz-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:24px}.quiz-actions button{min-height:46px;padding:11px 20px;border-radius:14px}.quiz-actions .back-step{border:1px solid #3a496a;background:#18233a;color:#dbe5ff;box-shadow:none}.quiz-actions .back-step:disabled{opacity:.45;cursor:not-allowed;transform:none}.error{padding:14px;border:1px solid #713957;border-radius:12px;background:#351b2c;color:#ffc1d0}.home-row{display:flex;justify-content:center;margin-top:20px}
+        .quiz-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:24px}.quiz-actions button{min-height:46px;padding:11px 20px;border-radius:14px}.quiz-actions .back-step{border:1px solid #3a496a;background:#18233a;color:#dbe5ff;box-shadow:none}.quiz-actions .back-step:disabled{opacity:.45;cursor:not-allowed;transform:none}.error{padding:14px;border:1px solid #713957;border-radius:12px;background:#351b2c;color:#ffc1d0}.home-row{position:fixed;top:18px;right:22px;z-index:30;margin:0}
         @media(max-width:520px){body{padding:14px}.quiz-shell{margin:8px auto}.quiz-top{align-items:flex-start}.quiz-actions button{padding:10px 13px}.choice{padding:10px 12px}}
     </style>
 </head>

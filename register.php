@@ -83,10 +83,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     @keyframes orb-drift{from{transform:translate3d(0,0,0) scale(.96)}to{transform:translate3d(-18px,16px,0) scale(1.06)}}
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
 </style>
+<style>
+    body{background:radial-gradient(ellipse at 18% 20%,#152c47 0,transparent 32%),radial-gradient(ellipse at 86% 84%,#21173f 0,transparent 34%),#080d18;color:#eaf1ff}
+    .shell{background:#0c1424;border:1px solid #354565;border-radius:24px;box-shadow:0 28px 90px #02061199,0 0 36px #55dfd51a;animation:auth-enter .7s cubic-bezier(.2,.7,.2,1) both}
+    .welcome{background:linear-gradient(145deg,#0f1c31,#101c34 55%,#1b1b3e);isolation:isolate}.welcome:before,.welcome:after{background:transparent;border:1px solid #66ecd933;box-shadow:0 0 70px #6a69ff16}
+    .brand,.welcome-copy,.note{z-index:2}.brand{color:#f0f5ff}.brand-mark{background:linear-gradient(145deg,#132f3d,#29234b);color:#83f6e7;box-shadow:0 0 16px #5cead733}.brand:hover .brand-mark{transform:rotate(-10deg) scale(1.08)}
+    .auth-neon-lines{position:absolute;z-index:1;inset:0;width:100%;height:100%;pointer-events:none;opacity:.72}.auth-neon-lines path{fill:none;stroke:#72f2e5;stroke-width:1.5;stroke-dasharray:8 14;filter:drop-shadow(0 0 6px #62e9dc);animation:auth-line-flow 22s linear infinite}.auth-neon-lines path:nth-child(2){stroke:#a78cff;stroke-dasharray:2 16;animation-duration:29s;animation-direction:reverse}@keyframes auth-line-flow{to{stroke-dashoffset:-420}}.welcome-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.24;filter:saturate(1.3) hue-rotate(215deg) brightness(.8);mix-blend-mode:screen;pointer-events:none}.welcome-art{position:absolute;z-index:1;width:95%;max-width:650px;right:-16%;bottom:7%;opacity:.18;pointer-events:none;animation:art-drift 9s ease-in-out infinite}.welcome-copy{animation:auth-rise .65s .12s both}.eyebrow{color:#82f0df}.welcome h1{color:#f3f6ff}.welcome-copy p{color:#b9c8dd}.note{background:#132036;border:1px solid #536989;color:#d9e6f8;animation:auth-rise .65s .28s both}
+    .form-side{background:linear-gradient(145deg,#10192a,#0c1424);animation:auth-form .65s .15s both}.form-side h2{color:#f0f4ff}.subtitle,.login{color:#a8b7d0}.error{color:#ffc2d0;background:#351b2b;border-color:#713957}
+    .form-side label{color:#d6e0f0}.form-side input{background:#0a1220;border-color:#344461;color:#eef5ff;transition:border-color .2s,box-shadow .2s,transform .2s}.form-side input::placeholder{color:#7587a4}.form-side input:hover{border-color:#6077a0}.form-side input:focus{border-color:#71e9dc;box-shadow:0 0 0 3px #71e9dc25,0 0 20px #71e9dc1b;transform:translateY(-1px)}
+    .show-password{background:#152b3c;color:#8bf4e4;transition:transform .2s,box-shadow .2s}.show-password:hover{transform:translateY(-1px);box-shadow:0 0 15px #70eadb33}.submit{background:linear-gradient(105deg,#61e9d9,#8b91ff);color:#07111d;box-shadow:0 0 23px #61e9d933;background-size:180% 180%;transition:background-position .35s,transform .2s,box-shadow .2s}.submit:hover{background-position:100% 0;transform:translateY(-2px);box-shadow:0 0 28px #61e9d966}.login a{color:#84f1e3;transition:color .2s,text-shadow .2s}.login a:hover{color:#c1fff3;text-shadow:0 0 12px #69ebdb77}
+    @keyframes auth-enter{from{opacity:0;transform:translateY(16px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes auth-rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}@keyframes auth-form{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:translateX(0)}}@keyframes art-drift{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-12px) rotate(1deg)}}
+    @media(max-width:760px){.welcome-art{width:75%;right:-15%;bottom:-3%;opacity:.27}.welcome-copy{margin:28px 0 0}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.welcome-video{display:none!important}}
+</style>
+<style>
+    .auth-neon-lines path{stroke:#91adff;stroke-dasharray:6 17;animation-duration:17s;filter:drop-shadow(0 0 7px #8195ff)}
+    .auth-neon-lines path:nth-child(2){stroke:#71f0c9;stroke-dasharray:3 21;animation-duration:31s;animation-direction:alternate;filter:drop-shadow(0 0 8px #5fe9c1)}
+</style>
 </head>
 <body>
     <main class="shell">
         <section class="welcome">
+            <video class="welcome-video" autoplay muted loop playsinline preload="none" poster="assets/career-journey.svg" aria-hidden="true"><source src="https://videos.pexels.com/video-files/8939684/8939684-hd_1920_1080_25fps.mp4" type="video/mp4"></video><img class="welcome-art" src="assets/career-journey.svg" alt=""><svg class="auth-neon-lines" viewBox="0 0 800 900" preserveAspectRatio="none" aria-hidden="true"><path d="M-90 170 C180 310 150 80 400 260 S620 420 890 650"/><path d="M-90 760 C150 610 310 820 500 650 S700 700 880 480"/></svg>
             <a class="brand" href="index.php"><span class="brand-mark">↗</span>CareerRoadmap</a>
             <div class="welcome-copy"><div class="eyebrow">A little step toward your future</div><h1>Your journey<br>starts here.</h1><p>Create an account to explore careers, discover your skills, and plan what comes next.</p></div>
             <p class="note">✨ Everyone is welcome. Register and log in to get started.</p>

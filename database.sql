@@ -17,6 +17,7 @@ CREATE TABLE `admin_profiles` (
   `linkedin_url` varchar(255) DEFAULT NULL,
   `github_url` varchar(255) DEFAULT NULL,
   `photo_path` varchar(255) DEFAULT NULL,
+  `space_label` varchar(40) DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

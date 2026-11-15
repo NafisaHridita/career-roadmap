@@ -63,11 +63,146 @@ td, th { border-color: var(--cute-border); }
     50% { background-position: 8% 12%, 92% 88%, 100% 0%; }
 }
 button, .btn, .actions a, .back, .submit {
-    transition: transform .18s ease, box-shadow .22s ease, filter .2s ease, background-color .2s ease;
+    transition: transform .2s cubic-bezier(.2,.75,.25,1), box-shadow .24s ease, filter .2s ease, background-color .2s ease, border-color .2s ease;
 }
 button:hover, .btn:hover, .actions a:hover, .back:hover, .submit:hover {
     transform: translateY(-2px);
 }
+@keyframes neonControlGlow {
+    0% { box-shadow: 0 0 0 rgba(103,233,221,0); }
+    55% { box-shadow: 0 0 22px rgba(103,233,221,.36); }
+    100% { box-shadow: 0 0 14px rgba(103,233,221,.2); }
+}
+body.neon-app button,
+body.neon-app input[type="submit"],
+body.neon-app input[type="button"],
+body.neon-app .btn,
+body.neon-app .submit,
+body.neon-app .back,
+body.neon-app .actions a,
+body.neon-app a.edit-link,
+body.neon-app a.question-list-button,
+body.neon-app .home-button,
+body.neon-app .admin-home-icon {
+    transition: transform .2s cubic-bezier(.2,.75,.25,1), box-shadow .24s ease, filter .2s ease, background-color .2s ease, border-color .2s ease;
+    transform-origin: center;
+}
+body.neon-app button:hover,
+body.neon-app input[type="submit"]:hover,
+body.neon-app input[type="button"]:hover,
+body.neon-app .btn:hover,
+body.neon-app .submit:hover,
+body.neon-app .back:hover,
+body.neon-app .actions a:hover,
+body.neon-app a.edit-link:hover,
+body.neon-app a.question-list-button:hover,
+body.neon-app .home-button:hover,
+body.neon-app .admin-home-icon:hover {
+    animation: neonControlGlow .55s ease-out both;
+    transform: translateY(-2px) scale(1.015);
+}
+body.neon-app button:active,
+body.neon-app input[type="submit"]:active,
+body.neon-app input[type="button"]:active,
+body.neon-app .btn:active,
+body.neon-app .submit:active,
+body.neon-app .back:active,
+body.neon-app .actions a:active,
+body.neon-app a.edit-link:active,
+body.neon-app a.question-list-button:active,
+body.neon-app .home-button:active,
+body.neon-app .admin-home-icon:active {
+    animation: none;
+    transform: translateY(0) scale(.97);
+    filter: brightness(.94);
+}
+body.neon-app button:focus-visible,
+body.neon-app input[type="submit"]:focus-visible,
+body.neon-app input[type="button"]:focus-visible,
+body.neon-app .btn:focus-visible,
+body.neon-app .submit:focus-visible,
+body.neon-app .back:focus-visible,
+body.neon-app .actions a:focus-visible,
+body.neon-app a.edit-link:focus-visible,
+body.neon-app a.question-list-button:focus-visible,
+body.neon-app .home-button:focus-visible,
+body.neon-app .admin-home-icon:focus-visible {
+    outline: 2px solid #7cf2e3;
+    outline-offset: 3px;
+}
+body.neon-app :is(button, input[type="submit"], input[type="button"]):disabled {
+    cursor: not-allowed;
+    filter: saturate(.55);
+    transform: none;
+    animation: none;
+}
+body.neon-app a[href*="logout.php"] {
+    display: inline-block;
+    transition: transform .2s cubic-bezier(.2,.75,.25,1), box-shadow .24s ease, filter .2s ease, background-color .2s ease;
+}
+body.neon-app a[href*="logout.php"]:hover {
+    animation: neonControlGlow .55s ease-out both;
+    transform: translateY(-2px);
+}
+body.neon-app a[href*="logout.php"]:active { animation: none; transform: scale(.97); }
+body.neon-app a[href*="logout.php"]:focus-visible { outline: 2px solid #7cf2e3; outline-offset: 3px; }
+body.admin-dashboard-page .admin-tools .dots {
+    display: grid !important;
+    flex: 0 0 42px;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    padding: 0 !important;
+    border: 1px solid #596b91 !important;
+    border-radius: 50%;
+    background: rgba(12, 24, 44, .96) !important;
+    color: #ffd36c !important;
+    font-size: 27px;
+    line-height: 1;
+    text-shadow: 0 0 12px #ffc75b99;
+    box-shadow: 0 0 0 3px #ffd36c1b, 0 0 18px #7e72ff35 !important;
+    position: relative;
+    z-index: 20;
+}
+body.admin-dashboard-page .admin-tools .dots:hover,
+body.admin-dashboard-page .admin-tools .dots:focus-visible {
+    color: #fff0a3 !important;
+    border-color: #ffd36c !important;
+    background: #172947 !important;
+    box-shadow: 0 0 0 4px #ffd36c22, 0 0 24px #ffd36c66 !important;
+}
+body.neon-app .cute-tag {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 15px !important;
+    border: 1px solid #254b69 !important;
+    border-radius: 999px !important;
+    background: rgba(7, 19, 35, .48) !important;
+    color: #a6f4e9 !important;
+    box-shadow: inset 0 1px #a9c9ff10, 0 0 18px #63e6d51b;
+}
+.student-nav-actions { display: flex; align-items: center; gap: 16px; }
+.student-profile-link { display: inline-flex; border-radius: 50%; text-decoration: none; }
+.student-dp {
+    display: grid;
+    place-items: center;
+    width: 43px;
+    height: 43px;
+    border: 2px solid #6cebdd !important;
+    border-radius: 50%;
+    object-fit: cover;
+    background: linear-gradient(135deg, #162945, #252047);
+    color: #c7fff7 !important;
+    font-size: 18px;
+    font-weight: 800;
+    box-shadow: 0 0 0 3px #6cebdd20, 0 0 18px #6cebdd36;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.student-profile-link:hover .student-dp,
+.student-profile-link:focus-visible .student-dp { transform: scale(1.08); border-color: #b6a6ff !important; box-shadow: 0 0 0 4px #a397ff30, 0 0 24px #a397ff66; }
+.student-profile-link:focus-visible { outline: 2px solid #8ef5e6; outline-offset: 4px; }
+body.neon-app .student-logout { color: #ffd1de !important; }
 .wrap, .container, .hero, .card, .profile-card, .details, .report-head, .result-card {
     animation: neonRise .48s ease both;
 }
@@ -158,6 +293,95 @@ body.neon-app .social-row { background: #121b31; border: 1px solid #2c3a58; }
 body.neon-app td form[id^="approve-"] { display: flex !important; align-items: center; gap: 10px; flex-wrap: wrap; }
 body.neon-app td form[id^="approve-"] input[name="name"] { width: min(240px,100%); }
 
+/* Glass surfaces with deep navy outlines for the reviewed pages. */
+body.neon-app .admin-students,
+body.neon-app .admin-student-list,
+body.neon-app .admin-questions,
+body.neon-app .admin-question-edit {
+    background: rgba(12, 21, 38, .58) !important;
+    border: 1px solid #15345b !important;
+    box-shadow: 0 18px 50px #02061180, inset 0 1px #9bbcff0c !important;
+    backdrop-filter: blur(16px);
+}
+body.neon-app .admin-question-edit fieldset {
+    border: 1px solid #17365e;
+    border-radius: 12px;
+    background: rgba(7, 16, 30, .32);
+}
+body.neon-app .admin-question-edit legend { color: #9db2d2 !important; }
+body.neon-app .admin-students thead,
+body.neon-app .admin-student-list thead,
+body.neon-app .admin-questions thead { background: rgba(17, 34, 58, .58) !important; }
+body.neon-app .admin-students tbody tr:hover,
+body.neon-app .admin-student-list tbody tr:hover,
+body.neon-app .admin-questions tbody tr:hover { background: rgba(31, 53, 83, .38) !important; }
+body.neon-app .admin-students td,
+body.neon-app .admin-student-list td,
+body.neon-app .admin-questions td,
+body.neon-app .admin-students th,
+body.neon-app .admin-student-list th,
+body.neon-app .admin-questions th { border-color: #17345a !important; }
+body.neon-app .admin-questions header nav a,
+body.neon-app .admin-questions > p a,
+body.neon-app .question-actions .action-edit {
+    color: #a9c9ff !important;
+    background: rgba(13, 27, 48, .48) !important;
+    border: 1px solid #17365e !important;
+}
+body.neon-app .admin-generator input,
+body.neon-app .admin-question-edit input,
+body.neon-app .admin-question-edit textarea,
+body.neon-app .admin-question-edit select { border-color: #17365e; }
+
+body.neon-app .profile-card,
+body.neon-app .details {
+    background: rgba(12, 21, 38, .52) !important;
+    border: 1px solid #15345b !important;
+    backdrop-filter: blur(16px);
+}
+body.neon-app .read-details p,
+body.neon-app .social-row {
+    background: rgba(7, 16, 30, .38) !important;
+    border: 1px solid #17365e !important;
+}
+body.neon-app .avatar { border-color: #102744 !important; }
+body.neon-app .avatar-menu {
+    background: rgba(11, 21, 38, .94) !important;
+    border: 1px solid #17365e;
+    backdrop-filter: blur(14px);
+}
+body.neon-app .avatar-menu button {
+    color: #dce8ff !important;
+    background: transparent !important;
+    border: 1px solid transparent;
+}
+body.neon-app .avatar-menu button:hover { background: #132742 !important; border-color: #17365e; }
+
+body.neon-app .top {
+    color: #e6edff;
+    background: rgba(10, 19, 35, .58) !important;
+    border-bottom: 1px solid #15345b;
+    backdrop-filter: blur(16px);
+}
+body.neon-app .top .brand,
+body.neon-app .top a:not(.brand) { color: #8df4e6 !important; }
+body.neon-app .grid > .card {
+    background: rgba(13, 23, 40, .56) !important;
+    border: 1px solid #15345b !important;
+    backdrop-filter: blur(14px);
+}
+body.neon-app .grid > .card .icon {
+    color: #9cf4e8;
+    background: rgba(8, 19, 35, .52) !important;
+    border: 1px solid #17365e;
+}
+body.neon-app .grid > .card a {
+    color: #91f3e5 !important;
+    background: rgba(8, 19, 35, .5) !important;
+    border: 1px solid #17365e;
+}
+body.neon-app .grid > .card a:hover { background: rgba(25, 48, 75, .76) !important; border-color: #24517b; }
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
@@ -185,3 +409,47 @@ main.wrap table { min-width: 850px; }
 .admin-questions header h1 { margin-top: 6px; }
 .admin-questions header nav { display: flex; flex-wrap: wrap; gap: 9px; }
 .admin-questions header nav a, .admin-questions > p a { display: inline-block; padding: 8px 12px; border-radius: 18px; background: #f2eafa; color: #684492; text-decoration: none; font-weight: 700; }
+
+/* Keep the admin review forms and tables readable against the neon dark canvas. */
+body.neon-app .admin-students,
+body.neon-app .admin-student-list,
+body.neon-app .admin-questions,
+body.neon-app .admin-generator,
+body.neon-app .admin-question-edit {
+    color: #e7efff !important;
+    background: linear-gradient(145deg, #151f35, #10182a 78%) !important;
+    border: 1px solid #394b6c !important;
+    box-shadow: 0 18px 48px #02061199, 0 0 24px #5d69ff16 !important;
+}
+body.neon-app .admin-students h1,
+body.neon-app .admin-student-list h1,
+body.neon-app .admin-questions h1,
+body.neon-app .admin-generator h1,
+body.neon-app .admin-question-edit h1,
+body.neon-app .admin-students h2,
+body.neon-app .admin-question-edit legend { color: #f1f5ff !important; }
+body.neon-app .admin-students p,
+body.neon-app .admin-student-list p,
+body.neon-app .admin-questions p,
+body.neon-app .admin-generator p,
+body.neon-app .admin-question-edit p,
+body.neon-app .admin-students label,
+body.neon-app .admin-generator label,
+body.neon-app .admin-question-edit label,
+body.neon-app .admin-students th,
+body.neon-app .admin-student-list th,
+body.neon-app .admin-questions th,
+body.neon-app .admin-students td,
+body.neon-app .admin-student-list td,
+body.neon-app .admin-questions td { color: #bdcbe3 !important; }
+body.neon-app .admin-students thead,
+body.neon-app .admin-student-list thead,
+body.neon-app .admin-questions thead { background: linear-gradient(90deg, #202d49, #1a2540) !important; }
+body.neon-app .admin-students tbody tr:hover,
+body.neon-app .admin-student-list tbody tr:hover,
+body.neon-app .admin-questions tbody tr:hover { background: #1b2942 !important; }
+body.neon-app .admin-students td,
+body.neon-app .admin-student-list td,
+body.neon-app .admin-questions td { border-color: #344361 !important; }
+body.neon-app .admin-questions header nav a,
+body.neon-app .admin-questions > p a { background: #132d38; border: 1px solid #315568; color: #8df1e3; }
