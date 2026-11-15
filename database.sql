@@ -1,3 +1,5 @@
+-- Career Roadmap schema. Foreign key checks are paused so tables can be created in any order.
+SET FOREIGN_KEY_CHECKS = 0;
 
 CREATE TABLE `admin_profile_social_links` (
   `link_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -121,3 +123,5 @@ CREATE TABLE `users` (
   UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+
+SET FOREIGN_KEY_CHECKS = 1;
