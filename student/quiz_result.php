@@ -35,7 +35,15 @@ if (empty($answers) || empty($questions)) {
             "Student Answer: " . $answer . "\n\n";
     }
 
-    $recommendation = careerAiGenerateRecommendation($answerText);
+    $careerCatalog = [];
+    if (ensureCareerTables($conn)) {
+        $careerRows = $conn->query('SELECT career_name, description, required_skills FROM careers ORDER BY career_name');
+        if ($careerRows) {
+            while ($career = $careerRows->fetch_assoc()) $careerCatalog[] = $career;
+        }
+    }
+
+    $recommendation = careerAiGenerateRecommendation($answerText, $careerCatalog);
     if (!$recommendation['ok']) {
         $error = $recommendation['error'];
     } else {

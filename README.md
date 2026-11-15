@@ -32,7 +32,7 @@ Career Roadmap is a web-based platform designed to help students explore suitabl
 5. Database
 The project uses MySQL to store user accounts, quiz questions, career information, and related data.
 Database name: `career_roadmap`
-Database structure can be imported using `database.sql`.
+Database structure can be imported using `database.sql`. The `careers` table stores `required_skills` and `created_at`. Opening Career Management also adds those columns on databases imported before this update.
 
 6. Database Setup
 
@@ -56,7 +56,8 @@ Career Roadmap aims to support students in making informed career decisions thro
 
 - `ai/` contains reusable Ollama configuration and generation logic. Student and Admin pages call these functions instead of repeating AI request code.
 - `career/` contains Student-facing career browsing, career details, required skills, quiz recommendation history, and AI-generated learning roadmaps.
-- `admin/careers.php` is the Admin interface for maintaining career descriptions and required skills. These records appear in the `career/` pages.
+- `admin/careers.php` is the Admin interface for maintaining career descriptions and required skills. Saving a career also refreshes matching rows in `career_skills`. These records appear in the `career/` pages.
+- `ai/generate_recommendation.php` builds the quiz recommendation. When Career Management has careers, that catalog and its required skills are included in the prompt. Results are stored in `career_recommendations` and shown to the student and on the admin AI Recommendations page.
 - `student/ai_assistant.php` remains the AI Assistant page and uses the shared function in `ai/career_assistant.php`.
 
 Career and recommendation tables are created by the application when their modules are first opened. Keep Ollama running with the configured model for AI generation features.

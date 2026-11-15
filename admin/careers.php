@@ -7,8 +7,29 @@ if (!ensureCareerTables($conn)) $error='Could not prepare the careers table. Che
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['save_career']) && !$error) {
     $id=(int)($_POST['career_id']??0); $name=trim($_POST['career_name']??''); $description=trim($_POST['description']??''); $skills=trim($_POST['required_skills']??'');
     if ($name==='') $error='Career name is required.';
-    else if ($id>0) { $stmt=$conn->prepare('UPDATE careers SET career_name=?,description=?,required_skills=? WHERE career_id=?'); $stmt->bind_param('sssi',$name,$description,$skills,$id); if($stmt->execute()) $message='Career updated.'; else $error='Could not update career.'; $stmt->close(); }
-    else { $stmt=$conn->prepare('INSERT INTO careers (career_name,description,required_skills) VALUES (?,?,?)'); $stmt->bind_param('sss',$name,$description,$skills); if($stmt->execute()) $message='Career added.'; else $error='Could not add career.'; $stmt->close(); }
+    else if ($id>0) {
+        $stmt=$conn->prepare('UPDATE careers SET career_name=?,description=?,required_skills=? WHERE career_id=?');
+        if (!$stmt) $error='Could not update career.';
+        else {
+            $stmt->bind_param('sssi',$name,$description,$skills,$id);
+            if($stmt->execute()) {
+                $message = syncCareerSkillRows($conn, $id, $skills) ? 'Career updated.' : 'Career updated, but the skill list could not be saved.';
+            } else $error='Could not update career.';
+            $stmt->close();
+        }
+    }
+    else {
+        $stmt=$conn->prepare('INSERT INTO careers (career_name,description,required_skills) VALUES (?,?,?)');
+        if (!$stmt) $error='Could not add career.';
+        else {
+            $stmt->bind_param('sss',$name,$description,$skills);
+            if($stmt->execute()) {
+                $newId = (int)$stmt->insert_id;
+                $message = syncCareerSkillRows($conn, $newId, $skills) ? 'Career added.' : 'Career added, but the skill list could not be saved.';
+            } else $error='Could not add career.';
+            $stmt->close();
+        }
+    }
 }
 $edit=null; if(isset($_GET['edit'])) { $id=(int)$_GET['edit']; $stmt=$conn->prepare('SELECT * FROM careers WHERE career_id=?'); $stmt->bind_param('i',$id); $stmt->execute(); $edit=$stmt->get_result()->fetch_assoc(); $stmt->close(); }
 $careers=$conn->query('SELECT * FROM careers ORDER BY career_name');

@@ -7,15 +7,56 @@ function ensureUserApprovalColumn(mysqli $conn): bool
     return (bool) $conn->query("ALTER TABLE users ADD COLUMN account_status ENUM('pending','approved') NOT NULL DEFAULT 'approved'");
 }
 
+function ensureCareerColumn(mysqli $conn, string $column, string $definition): bool
+{
+    $existing = $conn->query("SHOW COLUMNS FROM careers LIKE '" . $conn->real_escape_string($column) . "'");
+    if (!$existing) return false;
+    if ($existing->num_rows > 0) return true;
+    return (bool) $conn->query("ALTER TABLE careers ADD COLUMN {$column} {$definition}");
+}
+
 function ensureCareerTables(mysqli $conn): bool
 {
-    return (bool) $conn->query("CREATE TABLE IF NOT EXISTS careers (
+    $created = (bool) $conn->query("CREATE TABLE IF NOT EXISTS careers (
         career_id INT AUTO_INCREMENT PRIMARY KEY,
         career_name VARCHAR(150) NOT NULL,
         description TEXT NULL,
         required_skills TEXT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    if (!$created) return false;
+    // Imports from database.sql already have careers, so CREATE TABLE does not add later columns.
+    if (!ensureCareerColumn($conn, 'required_skills', 'TEXT NULL')) return false;
+    if (!ensureCareerColumn($conn, 'created_at', 'TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP')) return false;
+    return true;
+}
+
+function syncCareerSkillRows(mysqli $conn, int $careerId, string $skillsText): bool
+{
+    $table = $conn->query("SHOW TABLES LIKE 'career_skills'");
+    if (!$table || $table->num_rows === 0) return true;
+
+    $skills = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n|,/', $skillsText)), static fn($skill) => $skill !== ''));
+    $delete = $conn->prepare('DELETE FROM career_skills WHERE career_id = ?');
+    if (!$delete) return false;
+    $delete->bind_param('i', $careerId);
+    $deleted = $delete->execute();
+    $delete->close();
+    if (!$deleted) return false;
+    if (!$skills) return true;
+
+    $insert = $conn->prepare('INSERT INTO career_skills (career_id, skill_name, importance) VALUES (?, ?, ?)');
+    if (!$insert) return false;
+    $importance = 'required';
+    foreach ($skills as $skill) {
+        $insert->bind_param('iss', $careerId, $skill, $importance);
+        if (!$insert->execute()) {
+            $insert->close();
+            return false;
+        }
+    }
+    $insert->close();
+    return true;
 }
 
 function ensureRecommendationTable(mysqli $conn): bool

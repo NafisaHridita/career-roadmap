@@ -85,6 +85,8 @@ CREATE TABLE `careers` (
   `career_id` int(11) NOT NULL AUTO_INCREMENT,
   `career_name` varchar(150) NOT NULL,
   `description` text DEFAULT NULL,
+  `required_skills` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`career_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
