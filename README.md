@@ -27,7 +27,7 @@ Career Roadmap is a web-based platform designed to help students explore suitabl
 - Database: MySQL
 - Local Server: XAMPP
 - Database Tool: phpMyAdmin
-- AI Integration: local Ollama (default model `llama3.2`)
+- AI Integration: Grok API through xAI (default model `grok-4.7`)
 
 5. Database
 The project uses MySQL to store user accounts, quiz questions, career information, and related data.
@@ -43,9 +43,8 @@ iv. Create a database named `career_roadmap`.
 v. Select the database.
 vi. Import the `database.sql` file.
 vii. Copy `config/db.example.php` to `config/db.php` and set your MySQL user, password and database name.
-viii. Run the setup script once from the project folder: `C:
-mpp\php\php.exe tools\setup.php`. It asks for the first admin's name, email and password, then adds sample careers and approved quiz questions (it skips anything that already exists).
-ix. Start Ollama and download the AI model once: `ollama pull llama3.2`.
+viii. Run the setup script once from the project folder: `C:\xampp\php\php.exe tools\setup.php`. It asks for the first admin's name, email and password, then adds sample careers and approved quiz questions (it skips anything that already exists).
+ix. Copy `.env.example` to `.env` and add your xAI API key as `XAI_API_KEY`. Create a key at [console.x.ai](https://console.x.ai/).
 x. Run the project through localhost.
 
 7. Local Project URL
@@ -57,13 +56,13 @@ Career Roadmap aims to support students in making informed career decisions thro
 
 9. Feature Modules
 
-- `ai/` contains reusable Ollama configuration and generation logic. Student and Admin pages call these functions instead of repeating AI request code.
+- `ai/` contains reusable Grok API configuration and generation logic. Student and Admin pages call these functions instead of repeating AI request code.
 - `career/` contains Student-facing career browsing, career details, required skills, quiz recommendation history, and AI-generated learning roadmaps.
 - `admin/careers.php` is the Admin interface for maintaining career descriptions and required skills. Saving a career also refreshes matching rows in `career_skills`. These records appear in the `career/` pages.
 - `ai/generate_recommendation.php` builds the quiz recommendation. When Career Management has careers, that catalog and its required skills are included in the prompt. Results are stored in `career_recommendations` and shown to the student and on the admin AI Recommendations page.
 - `student/ai_assistant.php` remains the AI Assistant page and uses the shared function in `ai/career_assistant.php`.
 
-Career and recommendation tables are created by the application when their modules are first opened. Keep Ollama running with the configured model for AI generation features. To use another model, set the `CAREER_AI_MODEL` environment variable (for example `qwen2.5:0.5b`).
+Career and recommendation tables are created by the application when their modules are first opened. AI features require internet access and a valid `XAI_API_KEY` in `.env`. To use another model available to your xAI account, change `CAREER_AI_MODEL` in `.env`.
 
 10. How It Works
 
@@ -74,7 +73,7 @@ Career and recommendation tables are created by the application when their modul
 
 **Student journey**
 1. **Career Interest Quiz** (`student/quiz.php`) shows the admin-approved questions one step at a time and keeps the answers in the session.
-2. **AI recommendation** (`student/quiz_result.php`) sends the answers, plus the career catalog and required skills from Career Management, to the local Ollama model. It returns 5 suggested careers with reasons, a skill gap analysis and a starter roadmap. The result is saved in `career_recommendations`.
+2. **AI recommendation** (`student/quiz_result.php`) sends the answers, plus the career catalog and required skills from Career Management, to the Grok API. It returns 5 suggested careers with reasons, a skill gap analysis and a starter roadmap. The result is saved in `career_recommendations`.
 3. **Career Explorer** (`career/career_list.php`, `career_details.php`) lists every career with its description and required skills.
 4. **Skill Gap Checker** (`career/skills.php?id=…`): the student ticks the skills they already have and sees a match percentage and the skills still missing.
 5. **Learning Roadmap** (`career/roadmap.php`) asks the AI for a 4-stage plan. When opened from the Skill Gap Checker, the plan focuses on the missing skills.
@@ -88,19 +87,19 @@ Career and recommendation tables are created by the application when their modul
 - **Student Approvals / Student List** and **Admin Profile**.
 
 **AI layer**
-- All AI calls go through `careerAiGenerateText()` in `ai/ai_config.php`. It posts to Ollama at `http://127.0.0.1:11434/api/generate` and returns `ok`, `text` and `error`, so pages can show a friendly message when Ollama is offline.
+- All AI calls go through `careerAiGenerateText()` in `ai/ai_config.php`. It posts to xAI's Grok API and returns `ok`, `text` and `error`, so pages can show a friendly message when the key, network, or API request is unavailable.
 
 ```
 Browser ──> PHP page ──> MySQL (users, questions, careers, recommendations)
-                    └──> ai/*.php ──> Ollama (llama3.2, on this computer)
+                    └──> ai/*.php ──> Grok API (xAI)
 ```
 
 11. Contributions by Asha
 
 **Fixed**
-- **The AI features did not work.** The configured model `qwen2.5:0.5b` was not installed, so every AI feature failed. The default is now `llama3.2`, and `CAREER_AI_MODEL` can change it without editing code (`ai/ai_config.php`).
-- **AI requests with no options were rejected by Ollama.** Empty generation options were sent as a JSON array `[]` instead of an object `{}`. They are now always sent as an object.
-- **The quiz result page crashed with a fatal timeout.** The AI recommendation can take over 3 minutes on a local model, longer than PHP's time limit. The AI helper now extends PHP's limit to match its own timeout, the recommendation gets up to 7 minutes, and a slow or offline Ollama now shows a clear message instead of a crash.
+- **The AI features used a local model.** They now use the Grok API; set `XAI_API_KEY` in `.env` and choose the model with `CAREER_AI_MODEL`.
+- **The quiz result page had unresolved merge conflicts.** It now routes recommendation generation through the shared AI helper and saves the completed response to recommendation history.
+- **AI setup was unclear.** `.env.example` documents the required key without including a real secret.
 - **`database.sql` could not be imported into a new database.** Tables were created before the tables their foreign keys point to. The script now pauses foreign key checks during import.
 - **The AI Career Assistant was open to anyone.** `student/ai_assistant.php` had no login check. It now requires a student login through the shared guard in `includes/auth_check.php`, which was previously an empty file.
 - **The public `test.php` page exposed the server configuration through `phpinfo()`.** It has been removed.
@@ -112,6 +111,3 @@ Browser ──> PHP page ──> MySQL (users, questions, careers, recommendatio
 - **Delete careers** in Career Management (`admin/careers.php`): removes the career and its skill rows in one transaction and keeps old AI recommendation records.
 - **Database config template** (`config/db.example.php`): `config/db.php` is gitignored, so a fresh clone now has a template to copy.
 - Updated the setup steps in this README and added the How It Works section.
-
-**Tested**
-- Imported the schema into a fresh database, ran the setup script twice, and went through the full flow: register, student login, quiz, AI recommendation, skill gap check, focused roadmap, admin login, all admin pages and career delete. All pages returned without PHP errors, and student accounts are blocked from admin pages.

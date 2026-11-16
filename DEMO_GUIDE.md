@@ -16,22 +16,18 @@ Follow these steps in order. Part A is a one-time setup, Part B starts the app, 
    ```
 
    Type your admin name, email and a password of 8 or more characters. It then adds 8 sample careers (with 48 skills) and 8 approved quiz questions. Write down the admin email and password.
-5. **Install the AI model** (already done on this computer). Make sure **Ollama** is running (llama icon in the system tray), then run this once:
-
-   ```
-   ollama pull llama3.2
-   ```
+5. **Configure Grok:** copy `.env.example` to `.env` and set `XAI_API_KEY` to an API key from [console.x.ai](https://console.x.ai/). Do not share or commit the key. Grok API usage is billed by token, so check xAI billing and set a spending limit before the demo.
 
 ---
 
 ## Part B: Start the app (every time)
 
 1. **MySQL:** in the XAMPP Control Panel, MySQL must be green.
-2. **Ollama:** it must be running. To check, open http://127.0.0.1:11434 in a browser. It should say "Ollama is running".
+2. **Grok API:** confirm `.env` contains a valid `XAI_API_KEY` and the computer has internet access.
 3. **Start the website** from a terminal in the project folder:
 
    ```
-   C:\xampp\php\php.exe -S 127.0.0.1:8080
+   C:\xampp\php\php.exe -S 127.0.0.1:8080 -t . tools\dev_router.php
    ```
 
    Keep this window open while you demo.
@@ -39,7 +35,7 @@ Follow these steps in order. Part A is a one-time setup, Part B starts the app, 
 
 > Option: to use XAMPP Apache instead, copy the project folder to `C:\xampp\htdocs\CareerRoadmap`, start **Apache** in XAMPP, and open http://localhost/CareerRoadmap/.
 
-**Tip for warming up the AI before the demo:** ask the AI Career Assistant one question about 5 minutes before you start. The first AI request loads the model into memory, so later answers are faster.
+**Tip:** try one short AI Assistant question before the demo to confirm the API key, internet connection, and model access.
 
 ---
 
@@ -110,7 +106,7 @@ Tick each one before the demo.
 | 10 | Quiz recommendation | Finish the quiz | 5 careers with skill gap and roadmap (about 4 min), no error |
 | 11 | Saved results | My Recommendations (student) and AI Recommendations (admin) | The quiz result appears in both |
 | 12 | AI Assistant | Ask a career question | Answer in about 25 seconds |
-| 13 | Ollama offline message | Quit Ollama, then ask the assistant a question | A friendly "Could not get a reply from local Ollama…" message, not a crash. Start Ollama again afterwards |
+| 13 | API error message | Temporarily remove the API key from `.env`, then ask the assistant a question | A friendly missing API key message, not a crash. Restore the key afterwards |
 | 14 | Setup is safe to rerun | Run `C:\xampp\php\php.exe tools\setup.php` again | Says "already exists - skipping" for each step |
 | 15 | phpinfo removed | Open http://127.0.0.1:8080/test.php | Not found |
 
@@ -123,6 +119,6 @@ Tick each one before the demo.
 | "Database connection failed" | Start MySQL in the XAMPP Control Panel |
 | Can't log in as admin | Run `tools\setup.php` (Part A, step 4). If an admin already exists, use that account's email |
 | "No approved quiz questions" or "No career paths" | Run `tools\setup.php`, or add them as admin |
-| "Could not get a reply from local Ollama" | Start Ollama and check that `ollama list` shows `llama3.2` |
-| AI is very slow | Normal on a laptop CPU. Warm it up first (Part B tip), and close heavy apps |
+| "Grok API key is missing" | Add `XAI_API_KEY` to `.env` and restart the PHP server |
+| Grok API request fails | Check internet access, API key/model access, and available xAI API credits |
 | Port 8080 already in use | Use another port: `C:\xampp\php\php.exe -S 127.0.0.1:8090`, then open http://127.0.0.1:8090 |

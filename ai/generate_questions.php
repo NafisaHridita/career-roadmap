@@ -7,7 +7,7 @@ function careerAiGenerateQuestions(string $category, int $count): array
     $category = trim($category);
     if ($category === '') $category = 'Career Interest';
     $prompt = "Create exactly {$count} distinct career-interest quiz questions for the category '{$category}'. Ask about work activities, strengths, preferred work environments, and problem-solving styles that can help identify career interests. Avoid generic favorites, food, entertainment, and questions about a current job. Keep each question concise and make its answer choices meaningful and relevant. Return only the requested structured data. Do not add explanations, placeholders, or ellipses.";
-    // Structured output constrains Ollama to the exact question and option counts.
+    // Grok structured output constrains the response to the exact question and option counts.
     $responseFormat = [
         'type' => 'object',
         'properties' => [
@@ -36,8 +36,7 @@ function careerAiGenerateQuestions(string $category, int $count): array
     ];
     // Keep enough output room for every question and its four options.
     $tokenLimit = min(8192, 320 + ($count * 125));
-    $contextLimit = min(12288, max(3072, 1200 + ($count * 100)));
-    $response = careerAiGenerateText($prompt, ['temperature'=>0.15, 'num_ctx'=>$contextLimit, 'num_predict'=>$tokenLimit], 180, $responseFormat);
+    $response = careerAiGenerateText($prompt, ['temperature'=>0.15, 'num_predict'=>$tokenLimit], 180, $responseFormat);
     if (!$response['ok']) return ['ok'=>false, 'questions'=>[], 'error'=>$response['error']];
 
     $json = $response['text'];
