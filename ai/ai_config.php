@@ -12,6 +12,7 @@ if (is_file($careerAiEnvFile) && is_readable($careerAiEnvFile)) {
 
 if (!defined('CAREER_AI_ENDPOINT')) define('CAREER_AI_ENDPOINT', getenv('CAREER_AI_ENDPOINT') ?: 'https://api.x.ai/v1/responses');
 if (!defined('CAREER_AI_MODEL')) define('CAREER_AI_MODEL', getenv('CAREER_AI_MODEL') ?: 'grok-4.7');
+// [ashasuborna] Provider switch for the free local Ollama option (#34)
 // "grok" (default) uses the xAI API. "ollama" uses a free local Ollama model instead, no API key needed.
 if (!defined('CAREER_AI_PROVIDER')) define('CAREER_AI_PROVIDER', strtolower(trim((string)(getenv('CAREER_AI_PROVIDER') ?: 'grok'))));
 
@@ -72,6 +73,7 @@ function careerAiGenerateText(string $prompt, array $generationOptions = [], int
     return ['ok' => true, 'text' => $text, 'error' => ''];
 }
 
+// [ashasuborna] Ollama provider: llama3.2 model, {} options fix, timeout and friendly error (#31-#34)
 // Free local option: set CAREER_AI_PROVIDER=ollama in .env and run Ollama with the model pulled (ollama pull llama3.2).
 function careerAiOllamaText(string $prompt, array $generationOptions, int $timeout, array|string|null $responseFormat): array
 {

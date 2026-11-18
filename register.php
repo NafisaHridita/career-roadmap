@@ -1,6 +1,7 @@
 <?php
 include 'config/db.php';
 require_once 'includes/module_helpers.php';
+// [ashasuborna] Shared helpers: activity log and users.created_at (#23, #38)
 require_once 'includes/admin_tools.php';
 if (!ensureUserApprovalColumn($conn)) die('Could not prepare student approval status. Check database permissions.');
 // Adds users.created_at (registration date for Reports) and the activity log.
@@ -16,6 +17,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $confirmPassword = (string)($_POST['confirm_password'] ?? '');
 
     // Server-side checks, so the rules hold even if the browser form is bypassed.
+    // [ashasuborna] Registration checks on the server: required fields, name length, valid email, 8+ characters, matching passwords (#1, #2)
     if ($name === '' || $email === '' || $password === '') {
         $message = "All fields are required.";
     } elseif (mb_strlen($name) > 100) {
@@ -27,6 +29,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } elseif ($password !== $confirmPassword) {
         $message = "The two passwords do not match.";
     } else {
+        // [ashasuborna] Duplicate email check before saving (#2)
         $check = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
         $check->bind_param("s", $email);
         $check->execute();
@@ -36,6 +39,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if ($exists) {
             $message = "An account with this email already exists. Please log in instead.";
         } else {
+            // [ashasuborna] Password hashed; new students saved as pending (#4)
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
             // New students start as 'pending'; an admin approves them under Student Approvals.
@@ -46,6 +50,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $stmt->bind_param("sss", $name, $email, $hashed_password);
 
             if ($stmt->execute()) {
+                // [ashasuborna] Activity log entry for each registration (#23)
                 logActivity($conn, 'register', "New student registered: {$email} (pending approval)", (int)$stmt->insert_id, $name);
                 header("Location: login.php?registered=pending");
                 exit();
@@ -153,6 +158,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </main>
     <script>document.getElementById('togglePassword').addEventListener('click',function(){const input=document.getElementById('password'),showing=input.type==='password';input.type=showing?'text':'password';this.textContent=showing?'Hide':'Show';});</script>
     <script>
+    <?php /* [ashasuborna] Password strength meter and live password match check (#3) */ ?>
     // Password strength meter: scores length, upper/lower case, numbers and symbols.
     (function () {
         const pass = document.getElementById('password'), confirm = document.getElementById('confirm_password');

@@ -3,10 +3,12 @@
 -- It creates the career_roadmap database if needed. Every table uses IF NOT EXISTS,
 -- so importing again is safe and keeps existing data.
 -- After importing, run tools\setup.php once to create the first admin and sample data.
+-- [ashasuborna] Creates the database; safe to import again (#37)
 CREATE DATABASE IF NOT EXISTS `career_roadmap` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE `career_roadmap`;
 
 -- Foreign key checks are paused so tables can be created in any order.
+-- [ashasuborna] Foreign key checks paused so a new database imports cleanly (#37)
 SET FOREIGN_KEY_CHECKS = 0;
 
 CREATE TABLE IF NOT EXISTS `admin_profile_social_links` (
@@ -91,6 +93,7 @@ CREATE TABLE IF NOT EXISTS `career_skills` (
   CONSTRAINT `career_skills_ibfk_1` FOREIGN KEY (`career_id`) REFERENCES `careers` (`career_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- [ashasuborna] required_skills, created_at, category, demand_level columns (#38)
 CREATE TABLE IF NOT EXISTS `careers` (
   `career_id` int(11) NOT NULL AUTO_INCREMENT,
   `career_name` varchar(150) NOT NULL,
@@ -122,6 +125,7 @@ CREATE TABLE IF NOT EXISTS `questions` (
   PRIMARY KEY (`question_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- [ashasuborna] account_status for approval and created_at for Reports (#5, #38)
 CREATE TABLE IF NOT EXISTS `users` (
   `user_id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL,
@@ -134,6 +138,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- [ashasuborna] Login lockout table (#6, #38)
 -- Failed and successful logins, used to lock a login for 15 minutes after 5 wrong passwords.
 CREATE TABLE IF NOT EXISTS `login_attempts` (
   `attempt_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -145,6 +150,7 @@ CREATE TABLE IF NOT EXISTS `login_attempts` (
   KEY `email` (`email`,`attempted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- [ashasuborna] Activity Log table (#23, #38)
 -- Admin Activity Log: logins, lockouts, registrations, career changes and exports.
 CREATE TABLE IF NOT EXISTS `activity_log` (
   `log_id` int(11) NOT NULL AUTO_INCREMENT,

@@ -108,6 +108,8 @@ Team: **Hridita**, **Joynab** and **Suborna**. This section lists Suborna's part
 
 Step-by-step test and demo for every feature below, with code line references: **`DEMO_GUIDE.md` → Part F**.
 
+In the code, each of these changes is marked with a comment that starts with `[ashasuborna]` and ends with the feature number, for example `// [ashasuborna] Login lockout check (#6)`. In VS Code press `Ctrl+Shift+F` and search `[ashasuborna]` to list all of them (57 places in 21 files).
+
 Commits: `b5cfd8b` (careers + AI catalog), `9a0d0b3` (AI fixes, Skill Gap, setup, security), `f7839e7` (demo guide), `2cdffda` (approval login, registration checks, career and recommendation tools), `c544281` (reports, lockout, activity log, CSV export).
 
 *Accounts*

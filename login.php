@@ -2,6 +2,7 @@
 session_start();
 include 'config/db.php';
 require_once 'includes/module_helpers.php';
+// [ashasuborna] Login lockout and activity log helpers (#6, #23)
 require_once 'includes/admin_tools.php';
 // Older databases may not have the approval column yet; add it so the status check below works.
 ensureUserApprovalColumn($conn);
@@ -12,6 +13,7 @@ $message = "";
 $messageType = "error";
 
 // Messages shown after redirects from other pages.
+// [ashasuborna] Message after registration: admin must approve (#4)
 if (($_GET['registered'] ?? '') === 'pending') {
     $message = "Registration received! An admin must approve your account before you can log in.";
     $messageType = "success";
@@ -29,6 +31,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $message = "Enter your email and password.";
         $messageType = "error";
     } elseif (($lock = loginLockStatus($conn, $email))['locked']) {
+        // [ashasuborna] Login lockout: blocked while locked, even with the right password (#6)
         // Brute-force protection: too many wrong passwords in a short time.
         $message = "Too many failed attempts. For your security, login is locked for {$lock['minutes']} more minute(s). Try again later or ask an admin to unlock it.";
         $messageType = "locked";
@@ -43,6 +46,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $user = $stmt->get_result()->fetch_assoc();
         $stmt->close();
 
+        // [ashasuborna] Same message for wrong email or password, attempts left, lock after 5 (#6, #7)
         // One message for a wrong email or a wrong password, so the form does not reveal which emails are registered.
         if (!$user || !password_verify($password, $user['password'])) {
             recordLoginAttempt($conn, $email, false);
@@ -57,12 +61,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 logActivity($conn, 'login_failed', "Wrong email or password for {$email}", null, null);
             }
         } elseif ($user['role'] === 'student' && ($user['account_status'] ?? 'approved') !== 'approved') {
+            // [ashasuborna] Admin approval required before login (#5)
             // New students stay pending until an admin approves them under Student Approvals.
             $message = "Your account is waiting for admin approval. Please try again after an admin approves it.";
             $messageType = "pending";
             logActivity($conn, 'login_pending', "Pending student tried to log in: {$email}", (int)$user['user_id'], $user['name']);
         } else {
             recordLoginAttempt($conn, $email, true);
+            // [ashasuborna] New session ID and email in session (#8)
             // New session ID after login protects against session fixation.
             session_regenerate_id(true);
             $_SESSION['user_id'] = $user['user_id'];

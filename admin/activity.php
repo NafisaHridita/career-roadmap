@@ -1,4 +1,5 @@
 <?php
+// [ashasuborna] Activity Log with filters, search and login unlock (#23)
 session_start();
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') { header('Location: ../login.php'); exit(); }
 require_once '../config/db.php'; require_once '../includes/module_helpers.php'; require_once '../includes/admin_tools.php';

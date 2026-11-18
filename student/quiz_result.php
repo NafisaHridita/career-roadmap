@@ -34,6 +34,7 @@ if (($_GET['stream'] ?? '') === '1') {
         $answerText .= 'Student answer: ' . (string)($answers[$index] ?? 'Not answered') . "\n\n";
     }
 
+    // [ashasuborna] Send the admin's career list to the AI (#30)
     $careerCatalog = [];
     if (ensureCareerTables($conn)) {
         $careerRows = $conn->query('SELECT career_name, description, required_skills FROM careers ORDER BY career_name');

@@ -1,6 +1,7 @@
 <?php
 session_start(); require_once __DIR__ . '/common.php'; require_once __DIR__ . '/../ai/generate_roadmap.php'; careerPageRequireStudent();
 $ready=ensureCareerTables($conn); $id=filter_input(INPUT_GET,'id',FILTER_VALIDATE_INT)?:0; $career=$ready&&$id?careerPageGetById($conn,$id):null; $roadmap='';$error='';
+// [ashasuborna] Roadmap focused on missing skills; AI runs only on Generate click (#27, #28)
 $allSkills=$career?careerPageSkills($career['required_skills']??''):[]; $focus=array_values(array_intersect($allSkills,array_map('strval',(array)($_POST['focus']??[]))));
 if($_SERVER['REQUEST_METHOD']==='POST' && $career && isset($_POST['generate'])){$generated=careerAiGenerateRoadmap($career['career_name'],$allSkills,$focus);if($generated['ok'])$roadmap=$generated['text'];else$error=$generated['error'];}
 careerPageStyles('Learning roadmap');echo '<main class="career-wrap">';careerPageHeader('Learning roadmap');

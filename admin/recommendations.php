@@ -1,4 +1,5 @@
 ﻿<?php
+// [ashasuborna] AI Recommendations review: summary, search, show/hide, print, delete, CSV (#18-#21)
 session_start();
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') { header('Location: ../login.php'); exit(); }
 require_once '../config/db.php'; require_once '../includes/module_helpers.php'; require_once '../includes/admin_tools.php';
@@ -6,6 +7,7 @@ $error=''; $message=''; $rows=null; $stats=['total'=>0,'students'=>0,'latest'=>n
 $ready=ensureRecommendationTable($conn);
 if (!$ready) $error='Could not prepare recommendations storage. Check database permissions.';
 
+// [ashasuborna] Delete a saved result (#20)
 // Delete one saved recommendation (for example a test run or a duplicate).
 if ($ready && $_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['delete_recommendation'])) {
     $id=filter_input(INPUT_POST,'recommendation_id',FILTER_VALIDATE_INT);
@@ -22,6 +24,7 @@ if ($ready && $_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['delete_recomm
 }
 if (isset($_GET['deleted'])) $message='Recommendation deleted.';
 
+// [ashasuborna] Search (#19)
 // Search by student name, email or anything in the AI result text.
 $search=trim((string)($_GET['q']??''));
 if ($ready) {
@@ -32,6 +35,7 @@ if ($ready) {
         $stmt->bind_param('sss',$like,$like,$like); $stmt->execute(); $rows=$stmt->get_result(); $stmt->close();
     } else $rows=$conn->query($sql.' ORDER BY r.created_at DESC, r.recommendation_id DESC');
     if (!$rows) $error='Could not load AI recommendations.';
+    // [ashasuborna] Summary numbers (#18)
     $s=$conn->query('SELECT COUNT(*) AS total, COUNT(DISTINCT user_id) AS students, MAX(created_at) AS latest FROM career_recommendations');
     if ($s) $stats=$s->fetch_assoc();
 }
@@ -53,6 +57,7 @@ function e($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
 <?php $first=false; endwhile; endif; endif;?>
 </main>
 <script>
+<?php /* [ashasuborna] Print one result (#20) */ ?>
 // Print only the chosen student's result (other results are hidden while printing).
 function printResult(button) {
     const item = button.closest('details');

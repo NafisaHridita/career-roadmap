@@ -1,5 +1,6 @@
 <?php
 // Downloads admin data as a CSV file that opens in Excel: ?type=careers | recommendations | students
+// [ashasuborna] CSV export: careers, AI results, students; Excel-safe (#17, #21, #24)
 session_start();
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') { header('Location: ../login.php'); exit(); }
 require_once '../config/db.php'; require_once '../includes/module_helpers.php'; require_once '../includes/admin_tools.php';

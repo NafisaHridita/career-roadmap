@@ -6,10 +6,12 @@ $error=''; $message='';
 // Adds the category and demand_level columns (and the activity log) when missing.
 ensureAdminToolTables($conn);
 // Skills are typed one per line (commas also work); this matches how the student pages split them.
+// [ashasuborna] Career Management: validation, duplicates, category and demand, search, totals, delete, CSV (#10-#17)
 function adminCareerSkillList(string $text): array {
     return array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n|,/', $text)), static fn($s) => $s !== ''));
 }
 // Case-insensitive duplicate check, ignoring the career being edited.
+// [ashasuborna] Duplicate career names blocked, case-insensitive (#13)
 function adminCareerNameTaken(mysqli $conn, string $name, int $exceptId): bool {
     $stmt=$conn->prepare('SELECT career_id FROM careers WHERE LOWER(career_name)=LOWER(?) AND career_id<>? LIMIT 1');
     if (!$stmt) return false;
@@ -24,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['delete_career']) && !$e
     else {
         $nameStmt=$conn->prepare('SELECT career_name FROM careers WHERE career_id=?'); $nameStmt->bind_param('i',$id); $nameStmt->execute();
         $deletedName=(string)($nameStmt->get_result()->fetch_assoc()['career_name']??''); $nameStmt->close();
+        // [ashasuborna] Delete in one transaction (#12)
         // Remove rows that reference the career first so the foreign keys allow the delete.
         $conn->begin_transaction();
         try {
@@ -46,9 +49,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['delete_career']) && !$e
 }
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['save_career']) && !$error) {
     $id=(int)($_POST['career_id']??0); $name=trim($_POST['career_name']??''); $description=trim($_POST['description']??''); $skills=trim($_POST['required_skills']??'');
+    // [ashasuborna] Career category and job demand (#16)
     // Category and demand level are optional; anything outside the lists is saved as empty (NULL).
     $category=in_array($_POST['category']??'',CAREER_CATEGORIES,true)?$_POST['category']:null;
     $demand=in_array($_POST['demand_level']??'',CAREER_DEMAND_LEVELS,true)?$_POST['demand_level']:null;
+    // [ashasuborna] Validation: name, at least one skill, duplicate name (#13)
     if ($name==='') $error='Career name is required.';
     elseif (mb_strlen($name)>150) $error='Career name must be 150 characters or fewer.';
     elseif (!adminCareerSkillList($skills)) $error='Add at least one required skill (one per line).';
@@ -59,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['save_career']) && !$err
         else {
             $stmt->bind_param('sssssi',$name,$description,$skills,$category,$demand,$id);
             if($stmt->execute()) {
+                // [ashasuborna] Skills saved one per row, with error messages (#10, #11)
                 $message = syncCareerSkillRows($conn, $id, $skills) ? 'Career updated.' : 'Career updated, but the skill list could not be saved.';
                 logActivity($conn,'career_updated',"Updated career: {$name}");
             } else $error='Could not update career.';
@@ -80,10 +86,12 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['save_career']) && !$err
     }
 }
 $edit=null; if(isset($_GET['edit'])) { $id=(int)$_GET['edit']; $stmt=$conn->prepare('SELECT * FROM careers WHERE career_id=?'); $stmt->bind_param('i',$id); $stmt->execute(); $edit=$stmt->get_result()->fetch_assoc(); $stmt->close(); }
+// [ashasuborna] Form keeps input when a save fails (#13)
 // Keep what the admin typed when saving fails, so nothing has to be retyped.
 $form=$edit?:[];
 if ($error && isset($_POST['save_career'])) $form=['career_id'=>(int)($_POST['career_id']??0),'career_name'=>trim($_POST['career_name']??''),'description'=>trim($_POST['description']??''),'required_skills'=>trim($_POST['required_skills']??''),'category'=>$_POST['category']??'','demand_level'=>$_POST['demand_level']??''];
 $isEditing=(int)($form['career_id']??0)>0;
+// [ashasuborna] Search and category/demand filters (#14, #16)
 // Search by career name, description or skill, and filter by category and demand level.
 $search=trim((string)($_GET['q']??''));
 $filterCategory=in_array($_GET['category']??'',CAREER_CATEGORIES,true)?$_GET['category']:'';
@@ -96,6 +104,7 @@ $filtering=(bool)$where;
 $stmt=$conn->prepare('SELECT * FROM careers'.($where?' WHERE '.implode(' AND ',$where):'').' ORDER BY career_name');
 if ($params) $stmt->bind_param($types,...$params);
 $stmt->execute(); $careers=$stmt->get_result(); $stmt->close();
+// [ashasuborna] Totals for the stats bar (#15)
 $careerTotal=(int)$conn->query('SELECT COUNT(*) AS n FROM careers')->fetch_assoc()['n'];
 $skillTotal=0; foreach ($conn->query('SELECT required_skills FROM careers') as $row) $skillTotal+=count(adminCareerSkillList((string)$row['required_skills']));
 function e($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}

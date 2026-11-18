@@ -4,6 +4,7 @@
 // It creates the first admin account (registration only creates students) and adds
 // sample careers and approved quiz questions when those tables are empty.
 // Running it again is safe: it skips anything that already exists.
+// [ashasuborna] First-time setup: admin, sample careers and questions; safe to rerun (#40)
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit(); }
 
 require __DIR__ . '/../config/db.php';
@@ -61,6 +62,7 @@ if ($careerCount > 0) {
     echo 'Added ' . count($careers) . " sample careers.\n";
 }
 
+// [ashasuborna] Category and demand for the sample careers (#40)
 // 2b. Category and job demand for the sample careers (Career Management filters and Reports).
 // Only fills careers that have no category yet, so admin edits are never overwritten.
 require_once __DIR__ . '/../includes/admin_tools.php';

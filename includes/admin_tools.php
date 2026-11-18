@@ -1,5 +1,5 @@
 <?php
-// Suborna's admin tools: activity log, login lockout, and the extra columns used by
+// [ashasuborna] Admin tools: activity log, login lockout, and the extra columns used by
 // Career Management (category, demand level) and the Reports page (users.created_at).
 require_once __DIR__ . '/module_helpers.php';
 
@@ -10,6 +10,7 @@ const CAREER_CATEGORIES = ['Technology', 'Data & Analytics', 'Design & Creative'
 const CAREER_DEMAND_LEVELS = ['High', 'Medium', 'Low'];
 
 // Creates the tables and columns once per request. Additive only: existing data is kept.
+// [ashasuborna] Creates login_attempts, activity_log and new columns on older databases (#38, #39)
 function ensureAdminToolTables(mysqli $conn): bool
 {
     static $ready = null;
@@ -55,6 +56,7 @@ function adminToolsClientIp(): string
 }
 
 // Records who did what. Failing to log never breaks the page that called it.
+// [ashasuborna] Activity log writer (#23)
 function logActivity(mysqli $conn, string $action, string $details = '', ?int $userId = null, ?string $userName = null): void
 {
     if (!ensureAdminToolTables($conn)) return;
@@ -71,6 +73,7 @@ function logActivity(mysqli $conn, string $action, string $details = '', ?int $u
 
 // Failed logins for this email from this computer in the last LOGIN_LOCK_MINUTES.
 // Returns ['locked' => bool, 'failures' => int, 'remaining' => int, 'minutes' => int].
+// [ashasuborna] Login lockout check (#6)
 function loginLockStatus(mysqli $conn, string $email): array
 {
     $status = ['locked' => false, 'failures' => 0, 'remaining' => LOGIN_MAX_FAILURES, 'minutes' => 0];
@@ -116,6 +119,7 @@ function recordLoginAttempt(mysqli $conn, string $email, bool $success): void
 }
 
 // Emails locked right now (any computer), for the admin "Locked logins" list.
+// [ashasuborna] Locked logins list and unlock (#23)
 function lockedLogins(mysqli $conn): array
 {
     if (!ensureAdminToolTables($conn)) return [];
@@ -142,7 +146,7 @@ function unlockLogin(mysqli $conn, string $email): int
     return $count;
 }
 
-// Shared top navigation for Suborna's admin pages.
+// [ashasuborna] Shared top navigation for the admin tool pages (#25).
 function adminToolsNav(string $active): string
 {
     $links = ['careers.php' => 'Careers', 'recommendations.php' => 'AI Recommendations', 'reports.php' => 'Reports', 'activity.php' => 'Activity log'];
