@@ -61,6 +61,30 @@ if ($careerCount > 0) {
     echo 'Added ' . count($careers) . " sample careers.\n";
 }
 
+// 2b. Category and job demand for the sample careers (Career Management filters and Reports).
+// Only fills careers that have no category yet, so admin edits are never overwritten.
+require_once __DIR__ . '/../includes/admin_tools.php';
+if (ensureAdminToolTables($conn)) {
+    $sampleCategories = [
+        'Software Developer' => ['Technology', 'High'],
+        'Data Analyst' => ['Data & Analytics', 'High'],
+        'UI/UX Designer' => ['Design & Creative', 'Medium'],
+        'Cybersecurity Analyst' => ['Technology', 'High'],
+        'Digital Marketer' => ['Marketing & Media', 'Medium'],
+        'Teacher' => ['Education', 'Medium'],
+        'Graphic Designer' => ['Design & Creative', 'Low'],
+        'Project Manager' => ['Business & Management', 'Medium'],
+    ];
+    $fill = $conn->prepare("UPDATE careers SET category = ?, demand_level = ? WHERE career_name = ? AND (category IS NULL OR category = '')");
+    $filled = 0;
+    foreach ($sampleCategories as $careerName => [$category, $demand]) {
+        $fill->bind_param('sss', $category, $demand, $careerName);
+        $fill->execute();
+        $filled += $fill->affected_rows;
+    }
+    echo $filled > 0 ? "Set category and job demand for {$filled} sample careers.\n" : "Career categories already set - skipping.\n";
+}
+
 // 3. Sample approved quiz questions
 $approved = (int) $conn->query("SELECT COUNT(*) AS n FROM questions WHERE status='approved'")->fetch_assoc()['n'];
 if ($approved > 0) {

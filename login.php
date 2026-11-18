@@ -2,8 +2,11 @@
 session_start();
 include 'config/db.php';
 require_once 'includes/module_helpers.php';
+require_once 'includes/admin_tools.php';
 // Older databases may not have the approval column yet; add it so the status check below works.
 ensureUserApprovalColumn($conn);
+// Login attempts and activity log tables (for the lockout below).
+ensureAdminToolTables($conn);
 
 $message = "";
 $messageType = "error";
@@ -25,6 +28,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($email === '' || $password === '') {
         $message = "Enter your email and password.";
         $messageType = "error";
+    } elseif (($lock = loginLockStatus($conn, $email))['locked']) {
+        // Brute-force protection: too many wrong passwords in a short time.
+        $message = "Too many failed attempts. For your security, login is locked for {$lock['minutes']} more minute(s). Try again later or ask an admin to unlock it.";
+        $messageType = "locked";
+        logActivity($conn, 'login_blocked', "Locked login attempt for {$email}", null, null);
     } else {
         $stmt = $conn->prepare(
             "SELECT user_id, name, email, password, role, account_status
@@ -37,19 +45,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         // One message for a wrong email or a wrong password, so the form does not reveal which emails are registered.
         if (!$user || !password_verify($password, $user['password'])) {
-            $message = "Incorrect email or password.";
-            $messageType = "error";
+            recordLoginAttempt($conn, $email, false);
+            $lock = loginLockStatus($conn, $email);
+            if ($lock['locked']) {
+                $message = "Too many failed attempts. For your security, login is locked for " . LOGIN_LOCK_MINUTES . " minutes.";
+                $messageType = "locked";
+                logActivity($conn, 'login_locked', "Login locked after " . LOGIN_MAX_FAILURES . " failed attempts for {$email}", null, null);
+            } else {
+                $message = "Incorrect email or password. {$lock['remaining']} attempt(s) left before a " . LOGIN_LOCK_MINUTES . "-minute lock.";
+                $messageType = "error";
+                logActivity($conn, 'login_failed', "Wrong email or password for {$email}", null, null);
+            }
         } elseif ($user['role'] === 'student' && ($user['account_status'] ?? 'approved') !== 'approved') {
             // New students stay pending until an admin approves them under Student Approvals.
             $message = "Your account is waiting for admin approval. Please try again after an admin approves it.";
             $messageType = "pending";
+            logActivity($conn, 'login_pending', "Pending student tried to log in: {$email}", (int)$user['user_id'], $user['name']);
         } else {
+            recordLoginAttempt($conn, $email, true);
             // New session ID after login protects against session fixation.
             session_regenerate_id(true);
             $_SESSION['user_id'] = $user['user_id'];
             $_SESSION['name'] = $user['name'];
             $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'];
+            logActivity($conn, 'login_success', ucfirst($user['role']) . " logged in", (int)$user['user_id'], $user['name']);
 
             header("Location: " . ($user['role'] === 'admin' ? "admin/dashboard.php" : "student/dashboard.php"));
             exit();
@@ -113,6 +133,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </style>
 <style>
     .form-side .alert.pending{color:#ffe3a3;background:#2e2814;border-color:#6b5a26}
+    .form-side .alert.locked{color:#ffd0d8;background:#3a1420;border-color:#a33a57;font-weight:600}
+    .form-side .alert.locked:before{content:"🔒 "}
 </style>
 </head>
 <body>

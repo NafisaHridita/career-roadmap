@@ -9,7 +9,7 @@ Team: **Hridita**, **Joynab** and **Suborna**. Suborna's files: `register.php`, 
 ## Part A: One-time setup (about 10 minutes)
 
 1. **Start MySQL.** Open the **XAMPP Control Panel** and click **Start** next to **MySQL**. It turns green.
-2. **Database:** on this computer the `career_roadmap` database already exists, so you can skip this. On a new computer, open phpMyAdmin (http://localhost/phpmyadmin), click **Import**, choose `database.sql` and click **Import**. The file creates the database and all 11 tables. Or run in a terminal from the project folder:
+2. **Database:** on this computer the `career_roadmap` database already exists, so you can skip this. On a new computer, open phpMyAdmin (http://localhost/phpmyadmin), click **Import**, choose `database.sql` and click **Import**. The file creates the database and all 13 tables. Or run in a terminal from the project folder:
 
    ```
    C:\xampp\mysql\bin\mysql.exe -u root < database.sql
@@ -60,32 +60,48 @@ Say first: *"My part is accounts (register and login with admin approval), Caree
    - password `abc` → "Password must be at least 8 characters."
    - two different passwords → "The two passwords do not match."
    - an email that already exists → "An account with this email already exists."
-3. Register correctly, for example *Rina Akter*, `rina2@test.com`, `password1` twice.
-4. You land on the login page with: **"Registration received! An admin must approve your account before you can log in."**
+3. **Password strength meter:** type `abcdefgh` → the bar shows *Weak*; type `Demo2026!pass` → *Strong*. In Confirm password, the line turns to **✓ Passwords match**.
+4. Register correctly, for example *Rina Akter*, `rina2@test.com`, `Demo2026!pass` twice.
+5. You land on the login page with: **"Registration received! An admin must approve your account before you can log in."**
 
 ### C2. Login with admin approval (3 min) · `login.php`
 1. Log in as the new student → **"Your account is waiting for admin approval."** Say: *"New students cannot log in until an admin approves them."*
-2. Try a wrong password → **"Incorrect email or password."** Say: *"The same message for a wrong email or password, so the page does not reveal which emails exist."*
-3. Log in as **admin** → **Student Approvals** → find the student → **Save & approve** → **Logout**.
-4. Log in as the student again → the **Student Dashboard** opens.
+2. Try a wrong password → **"Incorrect email or password. 4 attempt(s) left…"** Say: *"The same message for a wrong email or password, so the page does not reveal which emails exist."*
+3. **Lockout:** enter a wrong password 4 more times → **🔒 "Too many failed attempts… locked for 15 minutes."** Now even the right password is refused. Say: *"This stops password-guessing (brute-force) attacks."*
+4. Log in as **admin** → **Activity log**: show the wrong passwords and the lock in the list, then click **Unlock** next to the email.
+5. **Student Approvals** → find the student → **Save & approve** → **Logout**.
+6. Log in as the student again → the **Student Dashboard** opens.
 
 ### C3. Career Management (3 min) · `admin/careers.php`
 1. Log in as admin → **Career Management**. Show the totals at the top (careers and required skills) and the skill tags and count on each career.
 2. **Search** `sql` → only careers that mention SQL are listed. Click **Clear**.
-3. **Add** a career, for example *Nurse* with skills on separate lines: Patient care, Communication, Medical knowledge → **Career added.**
+3. **Add** a career, for example *Nurse* with skills on separate lines: Patient care, Communication, Medical knowledge, **Category** Healthcare, **Job demand** High → **Career added.** It shows coloured *Healthcare* and *High demand* badges.
+   - Filter by **Technology** or **High** demand to show the filters.
 4. Add *nurse* again → **blocked as a duplicate**. Say: *"Duplicate career names are blocked, and the form keeps what I typed."*
 5. Click **Edit** on Nurse, change the description → **Update career** → **Career updated.**
 6. Click **Delete** → confirm → **Career deleted.** Say: *"Delete also removes its skill rows in one transaction."*
-7. Say: *"These careers feed the student Career Explorer, the Skill Gap Checker and the AI quiz."*
+7. Click **⬇ Export CSV** and open the file in Excel.
+8. Say: *"These careers feed the student Career Explorer, the Skill Gap Checker and the AI quiz."*
 
 ### C4. AI Recommendations review (1 min) · `admin/recommendations.php`
-1. Open **AI Recommendations**. Show the summary: saved results, students, latest date.
+1. Open **AI Recommendations** (use the menu at the top: Careers · AI Recommendations · Reports · Activity log). Show the summary: saved results, students, latest date.
 2. **Search** a student's name or a career such as `Data Analyst`.
-3. Click **Show / Hide** on a result. Delete a test result if there is one (it asks to confirm).
+3. Click **Show / Hide** on a result, then **🖨 Print** to print only that result. Delete a test result if there is one (it asks to confirm).
+4. **⬇ Export CSV** downloads every result for Excel.
+
+### C4b. Reports & Analytics (2 min) · `admin/reports.php`
+1. Open **Reports**. Show the 8 key numbers at the top.
+2. Show the charts: new registrations per day, AI quiz results per day, most recommended careers, approved vs pending donut, careers by category, job demand, most needed skills.
+3. Change **Period** to 7 or 30 days.
+4. Click **🖨 Print report** and **⬇ Students CSV**. Say: *"The admin gets live analytics from the database, ready to print or export."*
+
+### C4c. Activity Log (1 min) · `admin/activity.php`
+1. Open **Activity log**: every login, wrong password, lockout, registration, career change and export, with time, user and IP.
+2. Filter by **Wrong password** or **Career added**, or search a name.
 
 ### C5. Database (1 min) · `database.sql`
 - Open `database.sql` and point out `CREATE DATABASE IF NOT EXISTS`, `CREATE TABLE IF NOT EXISTS` and the paused foreign key checks.
-- Say: *"Importing creates the database and all 11 tables, and importing again is safe."*
+- Say: *"Importing creates the database and all 13 tables, and importing again is safe."*
 
 ### C6. Show the README (30 s)
 - Open `README.md` → **11. Contributions by Suborna**: my files, what I implemented and how to check it.
@@ -151,6 +167,14 @@ Tick each one before the demo. Tests 1 to 12 are Suborna's part.
 | 10 | Careers: duplicate and search | Add an existing name; search `sql` | Duplicate blocked; only matching careers listed |
 | 11 | Recommendations: search and delete | AI Recommendations | Search finds the student; delete asks first, then "Recommendation deleted." |
 | 12 | Database import | Import `database.sql` again in phpMyAdmin | Finishes without errors; data is kept |
+| 12a | Password strength | Register: type `abcdefgh`, then `Demo2026!pass` | *Weak*, then *Strong*; "✓ Passwords match" when both match |
+| 12b | Login lockout | 5 wrong passwords for one email | "N attempt(s) left", then 🔒 locked for 15 minutes, even with the right password |
+| 12c | Unlock | Admin → Activity log → Unlock | "Login unlocked"; the user can log in again |
+| 12d | Activity log | Admin → Activity log, filter "Wrong password" | Only wrong-password events are listed |
+| 12e | Category and demand | Add a career with Healthcare / High; filter High | Coloured badges; filter shows only High-demand careers |
+| 12f | Reports | Admin → Reports, change period | Numbers and charts load; Print report opens the print dialog |
+| 12g | CSV export | Export CSV on Careers, AI Recommendations, Reports | A `.csv` file downloads and opens in Excel |
+| 12h | Admin-only | As a student, open http://127.0.0.1:8080/admin/reports.php | Sent to the login page |
 | 13 | Home page | Open http://127.0.0.1:8080 | Landing page loads |
 | 14 | Student can't open admin pages | As a student, open http://127.0.0.1:8080/admin/careers.php | Sent to the login page |
 | 15 | Assistant needs login | Log out, then open http://127.0.0.1:8080/student/ai_assistant.php | Sent to the login page |
@@ -171,6 +195,8 @@ Tick each one before the demo. Tests 1 to 12 are Suborna's part.
 | "Database connection failed" | Start MySQL in the XAMPP Control Panel |
 | Can't log in as admin | Run `tools\setup.php` (Part A, step 4). If an admin already exists, use that account's email |
 | A student can't log in | The account is still pending: approve it as admin under Student Approvals |
+| "Too many failed attempts" | Wait 15 minutes, or log in as admin → Activity log → **Unlock** |
+| Reports charts are empty | Normal on a new database: register students and finish a quiz first |
 | "No approved quiz questions" or "No career paths" | Run `tools\setup.php`, or add them as admin |
 | "Grok API key is missing" | Add `XAI_API_KEY` to `.env`, or set `CAREER_AI_PROVIDER=ollama` to use free local Ollama |
 | "Could not get a reply from local Ollama" | Start Ollama and check that `ollama list` shows `llama3.2` |

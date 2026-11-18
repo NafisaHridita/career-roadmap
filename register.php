@@ -1,7 +1,10 @@
 <?php
 include 'config/db.php';
 require_once 'includes/module_helpers.php';
+require_once 'includes/admin_tools.php';
 if (!ensureUserApprovalColumn($conn)) die('Could not prepare student approval status. Check database permissions.');
+// Adds users.created_at (registration date for Reports) and the activity log.
+ensureAdminToolTables($conn);
 
 $message = "";
 
@@ -43,6 +46,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $stmt->bind_param("sss", $name, $email, $hashed_password);
 
             if ($stmt->execute()) {
+                logActivity($conn, 'register', "New student registered: {$email} (pending approval)", (int)$stmt->insert_id, $name);
                 header("Location: login.php?registered=pending");
                 exit();
             }
@@ -116,6 +120,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.welcome-video{display:none!important}}
 </style>
 <style>
+    .strength{margin-top:9px}.strength-bar{height:7px;border-radius:99px;background:#1c2740;overflow:hidden}.strength-bar span{display:block;height:100%;width:0;border-radius:99px;transition:width .3s,background .3s}
+    .strength small,.match-text{display:block;margin-top:6px;font-size:13px;color:#a8b7d0}.match-text.ok{color:#7ee0a1}.match-text.bad{color:#ff8ea9}
+</style>
+<style>
     .auth-neon-lines path{stroke:#91adff;stroke-dasharray:6 17;animation-duration:17s;filter:drop-shadow(0 0 7px #8195ff)}
     .auth-neon-lines path:nth-child(2){stroke:#71f0c9;stroke-dasharray:3 21;animation-duration:31s;animation-direction:alternate;filter:drop-shadow(0 0 8px #5fe9c1)}
 </style>
@@ -135,12 +143,50 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <label for="name">Full name</label><input id="name" type="text" name="name" autocomplete="name" maxlength="100" required value="<?= htmlspecialchars($_POST['name'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="Your name">
                 <label for="email">Email address</label><input id="email" type="email" name="email" autocomplete="email" required value="<?= htmlspecialchars($_POST['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="you@example.com">
                 <label for="password">Password</label><div class="password-wrap"><input id="password" type="password" name="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters"><button class="show-password" type="button" id="togglePassword">Show</button></div>
+                <div class="strength" aria-live="polite"><div class="strength-bar"><span id="strengthFill"></span></div><small id="strengthText">Password strength: type a password</small></div>
                 <label for="confirm_password">Confirm password</label><input id="confirm_password" type="password" name="confirm_password" autocomplete="new-password" required minlength="8" placeholder="Type the password again">
+                <small id="matchText" class="match-text" aria-live="polite"></small>
                 <button class="submit" type="submit">Create account</button>
             </form>
             <p class="login">Already have an account? <a href="login.php">Log in</a></p>
         </section>
     </main>
     <script>document.getElementById('togglePassword').addEventListener('click',function(){const input=document.getElementById('password'),showing=input.type==='password';input.type=showing?'text':'password';this.textContent=showing?'Hide':'Show';});</script>
+    <script>
+    // Password strength meter: scores length, upper/lower case, numbers and symbols.
+    (function () {
+        const pass = document.getElementById('password'), confirm = document.getElementById('confirm_password');
+        const fill = document.getElementById('strengthFill'), text = document.getElementById('strengthText'), match = document.getElementById('matchText');
+        const levels = [
+            {label: 'Too short', color: '#ff6b81', width: 15},
+            {label: 'Weak', color: '#ff8e5e', width: 35},
+            {label: 'Fair', color: '#ffd166', width: 60},
+            {label: 'Good', color: '#7ee0a1', width: 80},
+            {label: 'Strong', color: '#48d6a8', width: 100}
+        ];
+        function score(p) {
+            if (p.length < 8) return 0;
+            let s = 1;
+            if (p.length >= 12) s++;
+            if (/[a-z]/.test(p) && /[A-Z]/.test(p)) s++;
+            if (/\d/.test(p)) s++;
+            if (/[^A-Za-z0-9]/.test(p)) s++;
+            return Math.min(4, s);
+        }
+        function update() {
+            const p = pass.value;
+            if (!p) { fill.style.width = '0'; text.textContent = 'Password strength: type a password'; }
+            else {
+                const level = levels[score(p)];
+                fill.style.width = level.width + '%'; fill.style.background = level.color;
+                text.textContent = 'Password strength: ' + level.label + (score(p) < 3 ? ' (add capitals, numbers or symbols)' : '');
+            }
+            if (!confirm.value) { match.textContent = ''; match.className = 'match-text'; }
+            else if (confirm.value === p) { match.textContent = '✓ Passwords match'; match.className = 'match-text ok'; }
+            else { match.textContent = '✗ Passwords do not match yet'; match.className = 'match-text bad'; }
+        }
+        pass.addEventListener('input', update); confirm.addEventListener('input', update);
+    })();
+    </script>
 </body>
 </html>

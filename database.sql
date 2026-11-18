@@ -97,6 +97,8 @@ CREATE TABLE IF NOT EXISTS `careers` (
   `description` text DEFAULT NULL,
   `required_skills` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `category` varchar(60) DEFAULT NULL,
+  `demand_level` enum('High','Medium','Low') DEFAULT NULL,
   PRIMARY KEY (`career_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -127,8 +129,34 @@ CREATE TABLE IF NOT EXISTS `users` (
   `password` varchar(255) NOT NULL,
   `role` varchar(20) DEFAULT 'student',
   `account_status` enum('pending','approved') NOT NULL DEFAULT 'approved',
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Failed and successful logins, used to lock a login for 15 minutes after 5 wrong passwords.
+CREATE TABLE IF NOT EXISTS `login_attempts` (
+  `attempt_id` int(11) NOT NULL AUTO_INCREMENT,
+  `email` varchar(150) NOT NULL,
+  `ip_address` varchar(45) NOT NULL,
+  `success` tinyint(1) NOT NULL DEFAULT 0,
+  `attempted_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`attempt_id`),
+  KEY `email` (`email`,`attempted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Admin Activity Log: logins, lockouts, registrations, career changes and exports.
+CREATE TABLE IF NOT EXISTS `activity_log` (
+  `log_id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) DEFAULT NULL,
+  `user_name` varchar(100) DEFAULT NULL,
+  `action` varchar(60) NOT NULL,
+  `details` varchar(255) DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`log_id`),
+  KEY `created_at` (`created_at`),
+  KEY `action` (`action`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 

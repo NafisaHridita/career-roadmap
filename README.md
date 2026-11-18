@@ -40,7 +40,7 @@ i. Open XAMPP Control Panel.
 ii. Start Apache and MySQL.
 iii. Open phpMyAdmin.
 iv. Open the **Import** tab (no need to create a database first).
-v. Choose `database.sql` and click **Import**. The file creates the `career_roadmap` database and all 11 tables. Importing it again is safe: it keeps existing data.
+v. Choose `database.sql` and click **Import**. The file creates the `career_roadmap` database and all 13 tables. Importing it again is safe: it keeps existing data.
 vi. Or import from a terminal: `C:\xampp\mysql\bin\mysql.exe -u root < database.sql`
 vii. Copy `config/db.example.php` to `config/db.php` and set your MySQL user, password and database name.
 viii. Run the setup script once from the project folder: `C:\xampp\php\php.exe tools\setup.php`. It asks for the first admin's name, email and password, then adds sample careers and approved quiz questions (it skips anything that already exists).
@@ -86,7 +86,10 @@ Career and recommendation tables are created by the application when their modul
 **Admin journey**
 - **Question management**: add, edit, approve or reject quiz questions. AI can draft questions (`ai/generate_questions.php`). Only approved questions appear in the quiz.
 - **Career Management** (`admin/careers.php`): add, edit, delete and search careers and their required skills. Duplicate career names are blocked. Saving also refreshes the `career_skills` rows.
-- **AI Recommendations** (`admin/recommendations.php`): read every saved student analysis, search by student or career, and delete test results.
+- **AI Recommendations** (`admin/recommendations.php`): read every saved student analysis, search by student or career, print one result, export all as CSV, and delete test results.
+- **Reports & Analytics** (`admin/reports.php`): live numbers and charts (registrations, quiz results, most recommended careers, careers by category and demand, most needed skills).
+- **Activity Log** (`admin/activity.php`): logins, wrong passwords, lockouts, registrations, career changes and exports, with an **Unlock** button for locked logins.
+- **CSV export** (`admin/export.php`): careers, AI recommendations and students as Excel-ready files.
 - **Student Approvals / Student List** and **Admin Profile**.
 
 **AI layer**
@@ -111,6 +114,11 @@ Team: **Hridita**, **Joynab** and **Suborna**. This section lists Suborna's part
 | `admin/recommendations.php` | AI Recommendations review |
 | `database.sql` | Database schema |
 | `DEMO_GUIDE.md` | Demo and test guide |
+| `admin/reports.php` (new) | Reports & Analytics dashboard |
+| `admin/activity.php` (new) | Activity Log and login unlock |
+| `admin/export.php` (new) | CSV export |
+| `includes/admin_tools.php` (new) | Shared helpers: activity log, login lockout, admin menu |
+| `tools/setup.php` | Sample data, now with career category and demand |
 
 **11.2 What I implemented**
 
@@ -144,10 +152,26 @@ Team: **Hridita**, **Joynab** and **Suborna**. This section lists Suborna's part
 - Every table uses `CREATE TABLE IF NOT EXISTS`, so importing again is safe and keeps data.
 - Removed the leftover `AUTO_INCREMENT=…` counters from the old export, so a new database starts IDs at 1.
 - Foreign key checks are paused during import, so tables can be created in any order.
-- Tested: a fresh import creates the same 11 tables and columns as the running database.
+- New: `users.created_at`, `careers.category`, `careers.demand_level`, and two new tables, `login_attempts` and `activity_log` (13 tables in total). Older databases get these automatically the first time the pages run.
+- Tested: a fresh import creates the same 13 tables and columns as the running database.
 
 *Demo guide (`DEMO_GUIDE.md`)*
 - Setup with free Ollama or Grok, the approval flow, a demo script for my part and a test checklist.
+
+**11.2b Extra features you can see in the UI**
+
+| Feature | Where | What it shows |
+|---|---|---|
+| **Reports & Analytics dashboard** | Admin → Reports (`admin/reports.php`) | 8 key numbers (approved/pending students, careers, quiz results, quiz rate, logins, failed logins, admins) and 7 charts: daily registrations, daily quiz results, most recommended careers, approved vs pending donut, careers by category, job demand, most needed skills. Period: 7, 14 or 30 days. **Print report** button. |
+| **Login lockout (brute-force protection)** | `login.php` | After each wrong password: "N attempt(s) left". After 5 wrong passwords in 15 minutes the login is locked for 15 minutes (🔒 message), even with the right password. |
+| **Activity Log** | Admin → Activity log (`admin/activity.php`) | Every login, wrong password, lockout, registration, career change, deleted result and export, with time, user and IP. Filter by action, search, and an **Unlock** button for locked logins. |
+| **CSV export (Excel)** | ⬇ Export CSV buttons on Careers, AI Recommendations and Reports | Downloads careers, AI results or students as a CSV that opens in Excel (UTF-8, formula-safe). |
+| **Career category and job demand** | Career Management | Category (Technology, Healthcare, …) and demand (High/Medium/Low) on each career, shown as coloured badges, with filters. Used by the Reports charts. |
+| **Password strength meter** | `register.php` | Colour bar (Too short → Weak → Fair → Good → Strong) and a live "✓ Passwords match" check. |
+| **Print one AI result** | AI Recommendations → 🖨 Print | Prints only that student's result. |
+| **Admin tools menu** | Top of Careers, AI Recommendations, Reports, Activity log | One click between the four pages. |
+
+Security points to mention: passwords hashed (`password_hash`), prepared statements everywhere (no SQL injection), all output escaped (no XSS), new session ID on login, approval before login, brute-force lockout, admin-only pages, CSV formula-injection protection.
 
 **11.3 How to check my work (about 10 minutes)**
 1. Start the app (see `DEMO_GUIDE.md`, Part B) and open http://127.0.0.1:8080.
@@ -159,6 +183,12 @@ Team: **Hridita**, **Joynab** and **Suborna**. This section lists Suborna's part
 7. **Career Management** (as admin): check the totals, search `sql`, add a career with skills on separate lines, try adding it again (blocked as a duplicate), edit it, then delete it.
 8. **AI Recommendations** (as admin): check the summary, search a student name, open and close a result, and delete a test result.
 9. **Database:** in phpMyAdmin import `database.sql` again. It finishes without errors and nothing is lost.
+10. **Password strength:** on Register, type `abcdefgh` (Weak) then `Demo2026!pass` (Strong); type the confirm password and see "✓ Passwords match".
+11. **Lockout:** log out and enter a wrong password 5 times for one account. Each try shows the attempts left; the 5th locks the login for 15 minutes, even with the right password.
+12. **Activity log:** log in as admin → Activity log. See the wrong passwords and the lock, then click **Unlock**. The student can log in again.
+13. **Category and demand:** in Career Management, edit a career, set Category and Job demand, save; then filter by category or "High" demand.
+14. **Reports:** open Reports, switch the period (7/14/30 days) and click **Print report**.
+15. **CSV export:** click ⬇ Export CSV on Careers and AI Recommendations, and ⬇ Students CSV on Reports. Open the files in Excel.
 
 **11.4 Earlier fixes and features (commits `b5cfd8b`, `9a0d0b3`, `f7839e7`)**
 
