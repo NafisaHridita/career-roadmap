@@ -104,6 +104,79 @@ Browser ──> PHP page ──> MySQL (users, questions, careers, recommendatio
 
 Team: **Hridita**, **Joynab** and **Suborna**. This section lists Suborna's part (GitHub: `ashasuborna`).
 
+**11.0 Complete feature list (all 5 commits)**
+
+Commits: `b5cfd8b` (careers + AI catalog), `9a0d0b3` (AI fixes, Skill Gap, setup, security), `f7839e7` (demo guide), `2cdffda` (approval login, registration checks, career and recommendation tools), `c544281` (reports, lockout, activity log, CSV export).
+
+*Accounts*
+1. Registration checks on the server: required fields, name up to 100 characters, valid email, password 8+ characters (`register.php`)
+2. Confirm password field and a clear "email already exists" message (`register.php`)
+3. Password strength meter (Too short → Strong) and live "✓ Passwords match" (`register.php`)
+4. New students saved as `pending`; login page explains that an admin must approve (`register.php`, `login.php`)
+5. Admin approval required before a student can log in (`login.php`)
+6. Login lockout: "N attempt(s) left", then locked for 15 minutes after 5 wrong passwords (`login.php`, `includes/admin_tools.php`)
+7. One "Incorrect email or password" message for both cases, so emails are not revealed (`login.php`)
+8. New session ID after login (session fixation protection) and email stored in the session (`login.php`)
+9. Removed the blank line before `<?php` in `login.php` and `register.php` that broke redirect headers
+
+*Career Management (`admin/careers.php`)*
+
+10. Required skills saved one per row in `career_skills` on every add and edit (`syncCareerSkillRows` in `includes/module_helpers.php`)
+11. Error messages when a career cannot be added, updated or its skills saved
+12. Delete a career in one transaction (skill rows removed, old AI records kept)
+13. Duplicate career names blocked (case-insensitive); at least one skill required; form keeps your input on error
+14. Search by name, description or skill, with a result count
+15. Totals (careers, required skills), skill count per career, skills shown as tags
+16. Career category and job demand (High/Medium/Low) with coloured badges and filters
+17. CSV export of all careers
+
+*AI Recommendations (`admin/recommendations.php`)*
+
+18. Summary: saved results, number of students, latest date
+19. Search by student name, email or career
+20. Show / Hide each result, print one result, delete a result (with confirmation)
+21. CSV export of all results
+
+*New admin pages*
+
+22. Reports & Analytics (`admin/reports.php`): 8 key numbers, 7 charts, period 7/14/30 days, print, students CSV
+23. Activity Log (`admin/activity.php`): logins, wrong passwords, lockouts, registrations, career changes, deleted results and exports; filter, search, locked-logins list and **Unlock**
+24. CSV export page (`admin/export.php`): careers, AI results, students; UTF-8 for Excel and formula-injection safe
+25. Admin tools menu on Careers, AI Recommendations, Reports and Activity log; all four pages are admin-only
+
+*Student features*
+
+26. Skill Gap Checker (`career/skills.php`): tick your skills → "Skill match: N%", progress bar, missing skills; fake skill names are ignored
+27. Roadmap focused on the missing skills (`career/roadmap.php`, `ai/generate_roadmap.php`)
+28. Roadmap AI runs only when **Generate learning roadmap** is clicked, not every time the page opens (`career/roadmap.php`)
+29. Skill Gap styles: tick boxes, progress bar, missing-skill tags (`career/common.php`)
+30. AI quiz recommendation uses the admin's career list and its required skills (`student/quiz_result.php`, `ai/generate_recommendation.php`)
+
+*AI*
+
+31. AI model fixed: the missing `qwen2.5:0.5b` model replaced by `llama3.2`, and it can be changed with `CAREER_AI_MODEL` (`ai/ai_config.php`)
+32. Ollama request fix: empty options are sent as `{}` instead of `[]`, which Ollama rejected (`ai/ai_config.php`)
+33. Timeout fix: PHP waits as long as the AI (`set_time_limit`), the quiz recommendation gets up to 7 minutes, and a slow or stopped AI shows a friendly message instead of a fatal error (`ai/ai_config.php`, `ai/generate_recommendation.php`)
+34. Free local AI option: `CAREER_AI_PROVIDER=ollama` runs every AI feature on Ollama without an API key; Grok stays the default (`ai/ai_config.php`)
+
+*Security fixes*
+
+35. AI Career Assistant now requires a student login; `includes/auth_check.php` (previously empty) provides `requireRole()` (`student/ai_assistant.php`)
+36. Removed `test.php`, which exposed the server configuration through `phpinfo()`
+
+*Database and setup*
+
+37. `database.sql` imports into a new database (foreign key checks paused), creates the database itself, is safe to import again, and has no stale `AUTO_INCREMENT` counters
+38. New columns and tables: `careers.required_skills`, `careers.created_at`, `careers.category`, `careers.demand_level`, `users.created_at`, `login_attempts`, `activity_log` (13 tables)
+39. Older databases are upgraded automatically: missing columns and tables are added when the pages first run (`ensureCareerColumn`, `ensureAdminToolTables`)
+40. First-time setup script (`tools/setup.php`): first admin account, 8 sample careers with 48 skills, 8 approved quiz questions, career categories and demand; safe to run again
+41. Database config template (`config/db.example.php`)
+
+*Documentation*
+
+42. README: setup steps, How It Works, and this contributions section
+43. `DEMO_GUIDE.md`: setup, start, demo script, 30 tests and troubleshooting
+
 **11.1 My files**
 
 | File | Feature area |
@@ -118,7 +191,14 @@ Team: **Hridita**, **Joynab** and **Suborna**. This section lists Suborna's part
 | `admin/activity.php` (new) | Activity Log and login unlock |
 | `admin/export.php` (new) | CSV export |
 | `includes/admin_tools.php` (new) | Shared helpers: activity log, login lockout, admin menu |
-| `tools/setup.php` | Sample data, now with career category and demand |
+| `tools/setup.php` | First-time setup and sample data, with career category and demand |
+| `career/skills.php`, `career/roadmap.php`, `career/common.php` | Skill Gap Checker and focused roadmap |
+| `ai/ai_config.php`, `ai/generate_recommendation.php`, `ai/generate_roadmap.php` | AI fixes, career catalog in the quiz, free Ollama option |
+| `student/quiz_result.php` | Quiz recommendation uses the career list |
+| `student/ai_assistant.php`, `includes/auth_check.php` | Login required for the AI Assistant |
+| `includes/module_helpers.php` | Skill rows sync and automatic column upgrades |
+| `config/db.example.php` | Database config template |
+| `README.md` | Setup, How It Works, contributions |
 
 **11.2 What I implemented**
 
@@ -196,8 +276,15 @@ Security points to mention: passwords hashed (`password_hash`), prepared stateme
 - **`database.sql` could not be imported into a new database.** Tables were created before the tables their foreign keys point to. The script now pauses foreign key checks during import.
 - **The AI Career Assistant was open to anyone.** `student/ai_assistant.php` had no login check. It now requires a student login through the shared guard in `includes/auth_check.php`, which was previously an empty file.
 - **The public `test.php` page exposed the server configuration through `phpinfo()`.** It has been removed.
+- **The AI model did not exist on the computer.** `qwen2.5:0.5b` was replaced by `llama3.2` (changeable with `CAREER_AI_MODEL`).
+- **Ollama rejected requests with empty options.** They are now sent as a JSON object (`{}`), not an array.
+- **The quiz result page stopped with "Maximum execution time exceeded".** PHP now waits as long as the AI, the recommendation gets up to 7 minutes, and a slow or stopped AI shows a friendly message.
+- **The roadmap page called the AI every time it opened.** It now runs only when **Generate learning roadmap** is clicked.
+- **Older databases missed the `required_skills` and `created_at` columns.** `ensureCareerColumn()` adds them automatically.
 
 *Developed*
+- **Career catalog in the AI quiz** (`student/quiz_result.php`, `ai/generate_recommendation.php`): the quiz recommendation now prefers careers from Career Management and uses their required skills.
+- **Required skills saved per row** (`includes/module_helpers.php`): every career save refreshes its `career_skills` rows.
 - **First-time setup script** (`tools/setup.php`): creates the first admin account (registration only creates students, so there was no way to get an admin) and seeds 8 sample careers with 48 skills and 8 approved quiz questions. It is safe to run again.
 - **Skill Gap Checker** (`career/skills.php`): students tick the skills they have and get a match percentage, a progress bar and the list of missing skills.
 - **Roadmap focused on missing skills** (`career/roadmap.php`, `ai/generate_roadmap.php`): one click from the checker builds an AI roadmap that targets only the student's gaps.
