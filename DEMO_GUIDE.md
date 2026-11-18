@@ -205,38 +205,38 @@ The numbers match **README → 11.0 Complete feature list**. For each feature: w
   2. Password `abc` (both boxes) → *"Password must be at least 8 characters."*
   3. Empty name: the browser stops you; the server also checks (*"All fields are required."*).
 - Expected: one clear message each time; nothing is saved.
-- Code: [register.php:20](register.php:20) (all fields) · [register.php:21](register.php:21) (name ≤ 100) · [register.php:23](register.php:23) (email) · [register.php:25](register.php:25) (8+ characters)
+- Code: [register.php:20](register.php:22) (all fields) · [register.php:21](register.php:23) (name ≤ 100) · [register.php:23](register.php:25) (email) · [register.php:25](register.php:27) (8+ characters)
 
 **2. Confirm password and "email already exists"**
 - Steps: Register with two different passwords → *"The two passwords do not match."* Then use the email `rina@test.com` → *"An account with this email already exists. Please log in instead."*
-- Code: [register.php:27](register.php:27) (passwords match) · [register.php:30](register.php:30) (`SELECT user_id FROM users WHERE email = ?`) · [register.php:37](register.php:37) (message) · [register.php:147](register.php:147) (confirm field)
+- Code: [register.php:27](register.php:29) (passwords match) · [register.php:30](register.php:33) (`SELECT user_id FROM users WHERE email = ?`) · [register.php:37](register.php:40) (message) · [register.php:147](register.php:152) (confirm field)
 
 **3. Password strength meter**
 - Steps: In **Password** type `abcdefgh` → bar shows **Weak**. Change it to `Demo2026!pass` → **Strong** (green). Type the same in **Confirm password** → **✓ Passwords match**; change one letter → **✗ Passwords do not match yet**.
-- Code: [register.php:123](register.php:123) (bar styles) · [register.php:156](register.php:156) and [register.php:167](register.php:167) (JavaScript score: length, upper/lower case, numbers, symbols)
+- Code: [register.php:123](register.php:128) (bar styles) · [register.php:156](register.php:162) and [register.php:167](register.php:173) (JavaScript score: length, upper/lower case, numbers, symbols)
 
 **4. New students saved as pending**
 - Steps: Register correctly: name *Demo One*, email `demo1@test.com`, password `Demo2026!pass` twice.
 - Expected: login page with the green message *"Registration received! An admin must approve your account before you can log in."*
-- Code: [register.php:43](register.php:43) (`INSERT INTO users ... 'pending'`) · [register.php:39](register.php:39) (`password_hash`) · [login.php:15](login.php:15) (message)
+- Code: [register.php:43](register.php:47) (`INSERT INTO users ... 'pending'`) · [register.php:39](register.php:43) (`password_hash`) · [login.php:15](login.php:17) (message)
 
 **5. Admin approval before login**
 - Steps: Log in as `demo1@test.com` → *"Your account is waiting for admin approval."* (yellow). Log in as admin → **Student Approvals** → **Save & approve** for Demo One → Logout → log in as `demo1@test.com` → **Student Dashboard** opens.
-- Code: [login.php:38](login.php:38) (`SELECT ... account_status`) · [login.php:59](login.php:59) (pending check)
+- Code: [login.php:38](login.php:41) (`SELECT ... account_status`) · [login.php:59](login.php:63) (pending check)
 
 **6. Login lockout**
 - Steps: Log out. Log in as `rina@test.com` with a wrong password 5 times.
 - Expected: *"4 attempt(s) left"*, *"3…"*, *"2…"*, *"1…"*, then 🔒 *"Too many failed attempts… locked for 15 minutes."* Now try the right password `password1` → still locked. (Unlock it in feature 23.)
-- Code: [includes/admin_tools.php:6](includes/admin_tools.php:6) (5 tries, 15 minutes) · [includes/admin_tools.php:74](includes/admin_tools.php:74) (`loginLockStatus`) · [includes/admin_tools.php:100](includes/admin_tools.php:100) (`recordLoginAttempt`) · [login.php:31](login.php:31) (check before password) · [login.php:55](login.php:55) (attempts left)
+- Code: [includes/admin_tools.php:6](includes/admin_tools.php:6) (5 tries, 15 minutes) · [includes/admin_tools.php:74](includes/admin_tools.php:77) (`loginLockStatus`) · [includes/admin_tools.php:100](includes/admin_tools.php:103) (`recordLoginAttempt`) · [login.php:31](login.php:33) (check before password) · [login.php:55](login.php:59) (attempts left)
 
 **7. Same message for wrong email or wrong password**
 - Steps: Log in with `nobody@test.com` / `anything`, then with a real email and a wrong password.
 - Expected: both say *"Incorrect email or password…"*, so nobody can find out which emails are registered.
-- Code: [login.php:47](login.php:47) (`password_verify`) · [login.php:55](login.php:55)
+- Code: [login.php:47](login.php:51) (`password_verify`) · [login.php:55](login.php:59)
 
 **8. New session ID after login**
 - Steps: Show the code (no visible change). Optional: in the browser dev tools (F12 → Application → Cookies) the `PHPSESSID` value changes after you log in.
-- Code: [login.php:67](login.php:67) (`session_regenerate_id(true)`) · [login.php:70](login.php:70) (email in session)
+- Code: [login.php:67](login.php:73) (`session_regenerate_id(true)`) · [login.php:70](login.php:76) (email in session)
 
 **9. No blank line before `<?php`**
 - Steps: Open `login.php` and `register.php`: line 1 is `<?php`. Say: *"Output before `<?php` breaks `header()` redirects on servers without output buffering."*
@@ -246,118 +246,118 @@ The numbers match **README → 11.0 Complete feature list**. For each feature: w
 
 **10. Skills saved one per row**
 - Steps: Add a career *Nurse* with skills on separate lines: `Patient care`, `Communication`. Open phpMyAdmin → `career_skills` → the two skills are two rows for that career.
-- Code: [includes/module_helpers.php:34](includes/module_helpers.php:34) (`syncCareerSkillRows`) · [includes/module_helpers.php:39](includes/module_helpers.php:39) (split by line or comma)
+- Code: [includes/module_helpers.php:34](includes/module_helpers.php:36) (`syncCareerSkillRows`) · [includes/module_helpers.php:39](includes/module_helpers.php:41) (split by line or comma)
 
 **11. Error messages on save problems**
 - Steps: Show the code (these appear only if the database fails).
-- Code: [admin/careers.php:62](admin/careers.php:62) (*"skill list could not be saved"*) · [admin/careers.php:70](admin/careers.php:70) (*"Could not add career"*)
+- Code: [admin/careers.php:62](admin/careers.php:68) (*"skill list could not be saved"*) · [admin/careers.php:70](admin/careers.php:76) (*"Could not add career"*)
 
 **12. Safe delete (transaction)**
 - Steps: Click **Delete** on Nurse → confirm dialog → OK → *"Career deleted."*
-- Code: [admin/careers.php:28](admin/careers.php:28) (`begin_transaction`; skills, AI links and the career together; `rollback` on failure)
+- Code: [admin/careers.php:28](admin/careers.php:31) (`begin_transaction`; skills, AI links and the career together; `rollback` on failure)
 
 **13. Duplicate names blocked, skill required, input kept**
 - Steps: Add *Nurse* again, then try a career named `software developer` → *"A career named … already exists."* Add *Pilot* with no skills → *"Add at least one required skill"*, and the name you typed is still in the form.
-- Code: [admin/careers.php:13](admin/careers.php:13) (`LOWER(career_name)=LOWER(?)`) · [admin/careers.php:54](admin/careers.php:54) · [admin/careers.php:84](admin/careers.php:84) (form keeps input)
+- Code: [admin/careers.php:13](admin/careers.php:15) (`LOWER(career_name)=LOWER(?)`) · [admin/careers.php:54](admin/careers.php:59) · [admin/careers.php:84](admin/careers.php:91) (form keeps input)
 
 **14. Search**
 - Steps: Type `sql` → **Filter** → *"2 result(s) for "sql""*. Click **Clear**.
-- Code: [admin/careers.php:92](admin/careers.php:92) (`LIKE ?` on name, description, skills)
+- Code: [admin/careers.php:92](admin/careers.php:100) (`LIKE ?` on name, description, skills)
 
 **15. Totals, skill count and skill tags**
 - Steps: Point to **8 careers · 48 required skills** at the top, *"6 skills"* next to each name, and the skill tags.
-- Code: [admin/careers.php:99](admin/careers.php:99) · [admin/careers.php:100](admin/careers.php:100) · [admin/careers.php:112](admin/careers.php:112)
+- Code: [admin/careers.php:99](admin/careers.php:108) · [admin/careers.php:100](admin/careers.php:109) · [admin/careers.php:112](admin/careers.php:121)
 
 **16. Category and job demand**
 - Steps: **Edit** Nurse → Category **Healthcare**, Job demand **High** → **Update career** → coloured badges appear. Filter **Technology** → 2 results; demand **High** → 3 results.
-- Code: [admin/careers.php:50](admin/careers.php:50) (only allowed values saved) · [admin/careers.php:108](admin/careers.php:108) (dropdowns) · [admin/careers.php:112](admin/careers.php:112) (badges)
+- Code: [admin/careers.php:50](admin/careers.php:54) (only allowed values saved) · [admin/careers.php:108](admin/careers.php:117) (dropdowns) · [admin/careers.php:112](admin/careers.php:121) (badges)
 
 **17. Careers CSV**
 - Steps: Click **⬇ Export CSV** next to the title → open `careerroadmap-careers-<date>.csv` in Excel.
-- Code: [admin/careers.php:105](admin/careers.php:105) (button) · [admin/export.php:9](admin/export.php:9) (query)
+- Code: [admin/careers.php:105](admin/careers.php:114) (button) · [admin/export.php:9](admin/export.php:10) (query)
 
 ### AI Recommendations (Admin → AI Recommendations)
 
 **18. Summary**
 - Steps: Point to *saved results*, *students* and *Latest* at the top.
-- Code: [admin/recommendations.php:35](admin/recommendations.php:35) (`COUNT(*)`, `COUNT(DISTINCT user_id)`, `MAX(created_at)`)
+- Code: [admin/recommendations.php:35](admin/recommendations.php:39) (`COUNT(*)`, `COUNT(DISTINCT user_id)`, `MAX(created_at)`)
 
 **19. Search**
 - Steps: Search `Data Analyst` or a student name → *"N result(s)"*.
-- Code: [admin/recommendations.php:31](admin/recommendations.php:31) (`LEFT JOIN users ... LIKE ?`)
+- Code: [admin/recommendations.php:31](admin/recommendations.php:34) (`LEFT JOIN users ... LIKE ?`)
 
 **20. Show / Hide, print, delete**
 - Steps: Click a student name to open or close the result → **🖨 Print** (only that result is printed) → **Delete** on a test result → confirm → *"Recommendation deleted."*
-- Code: [admin/recommendations.php:52](admin/recommendations.php:52) (`<details>`, confirm) · [admin/recommendations.php:57](admin/recommendations.php:57) (`printResult`) · [admin/recommendations.php:16](admin/recommendations.php:16) (`DELETE`)
+- Code: [admin/recommendations.php:52](admin/recommendations.php:56) (`<details>`, confirm) · [admin/recommendations.php:57](admin/recommendations.php:62) (`printResult`) · [admin/recommendations.php:16](admin/recommendations.php:18) (`DELETE`)
 
 **21. AI results CSV**
 - Steps: Click **⬇ Export CSV** → open in Excel.
-- Code: [admin/recommendations.php:43](admin/recommendations.php:43) · [admin/export.php:14](admin/export.php:14)
+- Code: [admin/recommendations.php:43](admin/recommendations.php:47) · [admin/export.php:14](admin/export.php:15)
 
 ### New admin pages
 
 **22. Reports & Analytics**
 - Steps: Admin menu → **Reports**. Show the 8 numbers, then the 7 charts (registrations per day, quiz results per day, most recommended careers, approved vs pending donut, careers by category, job demand, most needed skills). Change **Period** to 7 and 30 days. Click **🖨 Print report** and **⬇ Students CSV**.
-- Code: [admin/reports.php:11](admin/reports.php:11) (period) · [admin/reports.php:15](admin/reports.php:15) (counts) · [admin/reports.php:30](admin/reports.php:30) (`GROUP BY DATE(created_at)`) · [admin/reports.php:42](admin/reports.php:42) (top careers) · [admin/reports.php:54](admin/reports.php:54) (top skills) · [admin/reports.php:116](admin/reports.php:116) (CSS donut)
+- Code: [admin/reports.php:11](admin/reports.php:12) (period) · [admin/reports.php:15](admin/reports.php:16) (counts) · [admin/reports.php:30](admin/reports.php:31) (`GROUP BY DATE(created_at)`) · [admin/reports.php:42](admin/reports.php:43) (top careers) · [admin/reports.php:54](admin/reports.php:55) (top skills) · [admin/reports.php:116](admin/reports.php:117) (CSS donut)
 
 **23. Activity Log and Unlock**
 - Steps: Admin menu → **Activity log**. The red **🔒 Locked logins** box shows `rina@test.com` (from feature 6) → **Unlock** → *"Login unlocked…"*. Filter **Wrong password**, then search `rina`. Log out and log in as Rina: it works again.
-- Code: [admin/activity.php:11](admin/activity.php:11) (unlock) · [admin/activity.php:33](admin/activity.php:33) (query with filters) · [admin/activity.php:57](admin/activity.php:57) (locked box) · [includes/admin_tools.php:58](includes/admin_tools.php:58) (`logActivity`) · [includes/admin_tools.php:119](includes/admin_tools.php:119) (`lockedLogins`)
+- Code: [admin/activity.php:11](admin/activity.php:12) (unlock) · [admin/activity.php:33](admin/activity.php:34) (query with filters) · [admin/activity.php:57](admin/activity.php:58) (locked box) · [includes/admin_tools.php:58](includes/admin_tools.php:60) (`logActivity`) · [includes/admin_tools.php:119](includes/admin_tools.php:123) (`lockedLogins`)
 
 **24. Safe CSV export**
 - Steps: Open http://127.0.0.1:8080/admin/export.php?type=students as admin → file downloads. Open http://127.0.0.1:8080/admin/export.php?type=bogus → *"Unknown export type…"*.
-- Code: [admin/export.php:8](admin/export.php:8) (3 exports) · [admin/export.php:27](admin/export.php:27) · [admin/export.php:33](admin/export.php:33) (`csvSafe`: cells starting with `=`, `+`, `-`, `@` stay plain text) · [admin/export.php:47](admin/export.php:47) (UTF-8 BOM for Excel)
+- Code: [admin/export.php:8](admin/export.php:9) (3 exports) · [admin/export.php:27](admin/export.php:28) · [admin/export.php:33](admin/export.php:34) (`csvSafe`: cells starting with `=`, `+`, `-`, `@` stay plain text) · [admin/export.php:47](admin/export.php:48) (UTF-8 BOM for Excel)
 
 **25. Admin menu and admin-only pages**
 - Steps: Use the menu (Careers · AI Recommendations · Reports · Activity log). Log in as a student and open http://127.0.0.1:8080/admin/reports.php → sent to the login page.
-- Code: [includes/admin_tools.php:146](includes/admin_tools.php:146) (menu) · line 3 of each admin page (admin check)
+- Code: [includes/admin_tools.php:146](includes/admin_tools.php:150) (menu) · line 3 of each admin page (admin check)
 
 ### Student features (log in as `rina@test.com`)
 
 **26. Skill Gap Checker**
 - Steps: Dashboard → **Explore careers** → **Skills** → **Check my skill gap** on *Software Developer* → tick *Problem solving* and *Teamwork* → **Check my skill gap**.
 - Expected: **Skill match: 33% (2 of 6 skills)**, progress bar, 4 missing skills. Tick all 6 → *"You already have every listed skill…"*
-- Code: [career/skills.php:16](career/skills.php:16) (`array_intersect`, ignores fake skills) · [career/skills.php:17](career/skills.php:17) (`array_diff`) · [career/skills.php:19](career/skills.php:19) (percent) · [career/skills.php:27](career/skills.php:27)
+- Code: [career/skills.php:16](career/skills.php:17) (`array_intersect`, ignores fake skills) · [career/skills.php:17](career/skills.php:18) (`array_diff`) · [career/skills.php:19](career/skills.php:20) (percent) · [career/skills.php:27](career/skills.php:29)
 
 **27. Roadmap for the missing skills**
 - Steps: On the result click **Build a roadmap for my missing skills** → page shows *"Focusing on the skills you are missing"*.
-- Code: [career/skills.php:25](career/skills.php:25) (hidden `focus[]`) · [career/roadmap.php:4](career/roadmap.php:4) · [ai/generate_roadmap.php:7](ai/generate_roadmap.php:7)
+- Code: [career/skills.php:25](career/skills.php:27) (hidden `focus[]`) · [career/roadmap.php:4](career/roadmap.php:5) · [ai/generate_roadmap.php:7](ai/generate_roadmap.php:8)
 
 **28. Roadmap AI only on button click**
 - Steps: The page does not call the AI on open. Click **Generate learning roadmap** → 1 to 2 minutes → 4-stage plan.
-- Code: [career/roadmap.php:5](career/roadmap.php:5) (`isset($_POST['generate'])`)
+- Code: [career/roadmap.php:5](career/roadmap.php:6) (`isset($_POST['generate'])`)
 
 **29. Skill Gap styles**
 - Steps: Point to the tick boxes, the progress bar and the coloured missing-skill tags.
-- Code: [career/common.php:35](career/common.php:35)
+- Code: [career/common.php:35](career/common.php:36)
 
 **30. AI quiz uses the admin's career list**
 - Steps: Dashboard → **Start quiz** → answer 8 questions → **Finish quiz →** (about 4 minutes with Ollama). The 5 careers come from Career Management.
-- Code: [student/quiz_result.php:37](student/quiz_result.php:37) (`$careerCatalog`) · [ai/generate_recommendation.php:63](ai/generate_recommendation.php:63) (catalog in the prompt)
+- Code: [student/quiz_result.php:37](student/quiz_result.php:38) (`$careerCatalog`) · [ai/generate_recommendation.php:63](ai/generate_recommendation.php:64) (catalog in the prompt)
 
 ### AI
 
 **31. AI model fixed**
 - Steps: In a terminal run `ollama list` → `llama3.2` is there. Show `.env` (`OLLAMA_MODEL=llama3.2`).
-- Code: [ai/ai_config.php:79](ai/ai_config.php:79) (`OLLAMA_MODEL`, default `llama3.2`) · [ai/ai_config.php:14](ai/ai_config.php:14) (`CAREER_AI_MODEL` for Grok)
+- Code: [ai/ai_config.php:79](ai/ai_config.php:81) (`OLLAMA_MODEL`, default `llama3.2`) · [ai/ai_config.php:14](ai/ai_config.php:14) (`CAREER_AI_MODEL` for Grok)
 
 **32. Ollama options fix**
 - Steps: Show the code; without it Ollama answered with an error.
-- Code: [ai/ai_config.php:92](ai/ai_config.php:92) (`(object)$options` → `{}`)
+- Code: [ai/ai_config.php:92](ai/ai_config.php:94) (`(object)$options` → `{}`)
 
 **33. Timeout fix and friendly AI error**
 - Steps: Quit Ollama (system tray → Quit). As a student ask the AI Assistant a question → *"Could not get a reply from local Ollama… Make sure Ollama is running"*, not a crash. Start Ollama again.
-- Code: [ai/ai_config.php:81](ai/ai_config.php:81) (at least 10 minutes for local AI) · [ai/ai_config.php:53](ai/ai_config.php:53) (`set_time_limit`) · [ai/ai_config.php:107](ai/ai_config.php:107) (message)
+- Code: [ai/ai_config.php:81](ai/ai_config.php:83) (at least 10 minutes for local AI) · [ai/ai_config.php:53](ai/ai_config.php:54) (`set_time_limit`) · [ai/ai_config.php:107](ai/ai_config.php:109) (message)
 
 **34. Free Ollama option**
 - Steps: Open `.env` → `CAREER_AI_PROVIDER=ollama`. Ask the AI Assistant *"What skills do I need to become a data analyst?"* → answer in about 25 seconds, no API key.
-- Code: [ai/ai_config.php:16](ai/ai_config.php:16) (provider switch) · [ai/ai_config.php:76](ai/ai_config.php:76) (`careerAiOllamaText`)
+- Code: [ai/ai_config.php:16](ai/ai_config.php:17) (provider switch) · [ai/ai_config.php:76](ai/ai_config.php:78) (`careerAiOllamaText`)
 
 ### Security fixes
 
 **35. AI Assistant needs a login**
 - Steps: Log out → open http://127.0.0.1:8080/student/ai_assistant.php → login page.
-- Code: [includes/auth_check.php:5](includes/auth_check.php:5) (`requireRole`) · [student/ai_assistant.php:3](student/ai_assistant.php:3)
+- Code: [includes/auth_check.php:5](includes/auth_check.php:6) (`requireRole`) · [student/ai_assistant.php:3](student/ai_assistant.php:4)
 
 **36. `test.php` removed**
 - Steps: Open http://127.0.0.1:8080/test.php → no PHP/server information appears.
@@ -367,23 +367,23 @@ The numbers match **README → 11.0 Complete feature list**. For each feature: w
 
 **37. `database.sql` import**
 - Steps: phpMyAdmin (XAMPP Apache on) → **Import** → `database.sql` → success. Import again → success, data kept.
-- Code: [database.sql:6](database.sql:6) (`CREATE DATABASE IF NOT EXISTS`) · [database.sql:7](database.sql:7) (`USE`) · [database.sql:10](database.sql:10) (foreign key checks paused)
+- Code: [database.sql:6](database.sql:7) (`CREATE DATABASE IF NOT EXISTS`) · [database.sql:7](database.sql:8) (`USE`) · [database.sql:10](database.sql:12) (foreign key checks paused)
 
 **38. New columns and tables (13 tables)**
 - Steps: phpMyAdmin → `career_roadmap` → see `login_attempts` and `activity_log`; open `careers` → `category`, `demand_level`; `users` → `created_at`.
-- Code: [database.sql:94](database.sql:94) · [database.sql:125](database.sql:125) · [database.sql:138](database.sql:138) · [database.sql:149](database.sql:149)
+- Code: [database.sql:94](database.sql:97) · [database.sql:125](database.sql:129) · [database.sql:138](database.sql:143) · [database.sql:149](database.sql:155)
 
 **39. Older databases upgrade themselves**
 - Steps: Show the code: on first run the pages add any missing column or table, so an old database keeps working.
-- Code: [includes/module_helpers.php:10](includes/module_helpers.php:10) (`ensureCareerColumn`) · [includes/module_helpers.php:29](includes/module_helpers.php:29) · [includes/admin_tools.php:13](includes/admin_tools.php:13) (`ensureAdminToolTables`)
+- Code: [includes/module_helpers.php:10](includes/module_helpers.php:11) (`ensureCareerColumn`) · [includes/module_helpers.php:29](includes/module_helpers.php:30) · [includes/admin_tools.php:13](includes/admin_tools.php:14) (`ensureAdminToolTables`)
 
 **40. Setup script**
 - Steps: In the VS Code terminal run `C:\xampp\php\php.exe tools\setup.php` → *"already exists - skipping"* for each step (on an empty database it creates the admin, 8 careers, 8 questions and categories).
-- Code: [tools/setup.php:7](tools/setup.php:7) (terminal only) · [tools/setup.php:32](tools/setup.php:32) (`password_hash`) · [tools/setup.php:61](tools/setup.php:61) · [tools/setup.php:68](tools/setup.php:68) (categories) · [tools/setup.php:93](tools/setup.php:93) (questions)
+- Code: [tools/setup.php:7](tools/setup.php:8) (terminal only) · [tools/setup.php:32](tools/setup.php:33) (`password_hash`) · [tools/setup.php:61](tools/setup.php:62) · [tools/setup.php:68](tools/setup.php:70) (categories) · [tools/setup.php:93](tools/setup.php:95) (questions)
 
 **41. Database config template**
 - Steps: Open `config/db.example.php`; `config/db.php` is in `.gitignore`.
-- Code: [config/db.example.php:4](config/db.example.php:4) · [.gitignore:7](.gitignore:7)
+- Code: [config/db.example.php:4](config/db.example.php:5) · [.gitignore:7](.gitignore:7)
 
 ### Documentation
 
