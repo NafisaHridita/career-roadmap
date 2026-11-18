@@ -106,6 +106,8 @@ Team: **Hridita**, **Joynab** and **Suborna**. This section lists Suborna's part
 
 **11.0 Complete feature list (all 5 commits)**
 
+Step-by-step test and demo for every feature below, with code line references: **`DEMO_GUIDE.md` → Part F**.
+
 Commits: `b5cfd8b` (careers + AI catalog), `9a0d0b3` (AI fixes, Skill Gap, setup, security), `f7839e7` (demo guide), `2cdffda` (approval login, registration checks, career and recommendation tools), `c544281` (reports, lockout, activity log, CSV export).
 
 *Accounts*
@@ -154,9 +156,9 @@ Commits: `b5cfd8b` (careers + AI catalog), `9a0d0b3` (AI fixes, Skill Gap, setup
 
 *AI*
 
-31. AI model fixed: the missing `qwen2.5:0.5b` model replaced by `llama3.2`, and it can be changed with `CAREER_AI_MODEL` (`ai/ai_config.php`)
+31. AI model fixed: the missing `qwen2.5:0.5b` model replaced by `llama3.2`; the local model can be changed with `OLLAMA_MODEL` (`ai/ai_config.php`)
 32. Ollama request fix: empty options are sent as `{}` instead of `[]`, which Ollama rejected (`ai/ai_config.php`)
-33. Timeout fix: PHP waits as long as the AI (`set_time_limit`), the quiz recommendation gets up to 7 minutes, and a slow or stopped AI shows a friendly message instead of a fatal error (`ai/ai_config.php`, `ai/generate_recommendation.php`)
+33. Timeout fix: PHP waits as long as the AI (`set_time_limit`), local Ollama calls get at least 10 minutes, and a slow or stopped AI shows a friendly message instead of a fatal error (`ai/ai_config.php`)
 34. Free local AI option: `CAREER_AI_PROVIDER=ollama` runs every AI feature on Ollama without an API key; Grok stays the default (`ai/ai_config.php`)
 
 *Security fixes*
