@@ -1,54 +1,60 @@
-
 <?php
 session_start();
 include 'config/db.php';
+require_once 'includes/module_helpers.php';
+// Older databases may not have the approval column yet; add it so the status check below works.
+ensureUserApprovalColumn($conn);
 
 $message = "";
+$messageType = "error";
 
-if (isset($_GET['registered'])) {
+// Messages shown after redirects from other pages.
+if (($_GET['registered'] ?? '') === 'pending') {
+    $message = "Registration received! An admin must approve your account before you can log in.";
+    $messageType = "success";
+} elseif (isset($_GET['registered'])) {
     $message = "Registration successful! You can log in now.";
+    $messageType = "success";
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
+    $email = trim((string)($_POST['email'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
 
-    $stmt = $conn->prepare(
-        "SELECT user_id, name, email, password, role
-         FROM users WHERE email = ?"
-    );
+    if ($email === '' || $password === '') {
+        $message = "Enter your email and password.";
+        $messageType = "error";
+    } else {
+        $stmt = $conn->prepare(
+            "SELECT user_id, name, email, password, role, account_status
+             FROM users WHERE email = ?"
+        );
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $user = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
 
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-
-    $result = $stmt->get_result();
-
-    if ($result->num_rows == 1) {
-        $user = $result->fetch_assoc();
-
-        if (password_verify($password, $user['password'])) {
-
+        // One message for a wrong email or a wrong password, so the form does not reveal which emails are registered.
+        if (!$user || !password_verify($password, $user['password'])) {
+            $message = "Incorrect email or password.";
+            $messageType = "error";
+        } elseif ($user['role'] === 'student' && ($user['account_status'] ?? 'approved') !== 'approved') {
+            // New students stay pending until an admin approves them under Student Approvals.
+            $message = "Your account is waiting for admin approval. Please try again after an admin approves it.";
+            $messageType = "pending";
+        } else {
+            // New session ID after login protects against session fixation.
+            session_regenerate_id(true);
             $_SESSION['user_id'] = $user['user_id'];
             $_SESSION['name'] = $user['name'];
+            $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'];
 
-            if ($user['role'] == 'admin') {
-                header("Location: admin/dashboard.php");
-            } else {
-                header("Location: student/dashboard.php");
-            }
+            header("Location: " . ($user['role'] === 'admin' ? "admin/dashboard.php" : "student/dashboard.php"));
             exit();
-
-        } else {
-            $message = "Incorrect password!";
         }
-
-    } else {
-        $message = "Account not found!";
     }
-
-    $stmt->close();
 }
 ?>
 
@@ -105,6 +111,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     @media(max-width:760px){.welcome-art{width:75%;right:-15%;bottom:-3%;opacity:.27}.welcome-copy{margin:30px 0 20px}}
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.welcome-video{display:none!important}}
 </style>
+<style>
+    .form-side .alert.pending{color:#ffe3a3;background:#2e2814;border-color:#6b5a26}
+</style>
 </head>
 <body>
     <main class="shell">
@@ -122,7 +131,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <h2>Welcome back</h2>
             <p class="subtitle">Log in to continue your CareerRoadmap journey.</p>
             <?php if ($message): ?>
-                <p class="alert <?= isset($_GET['registered']) ? 'success' : '' ?>" role="status"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></p>
+                <p class="alert <?= htmlspecialchars($messageType, ENT_QUOTES, 'UTF-8') ?>" role="status"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></p>
             <?php endif; ?>
             <form method="post">
                 <label for="email">Email address</label>

@@ -39,12 +39,14 @@ Database structure can be imported using `database.sql`. The `careers` table sto
 i. Open XAMPP Control Panel.
 ii. Start Apache and MySQL.
 iii. Open phpMyAdmin.
-iv. Create a database named `career_roadmap`.
-v. Select the database.
-vi. Import the `database.sql` file.
+iv. Open the **Import** tab (no need to create a database first).
+v. Choose `database.sql` and click **Import**. The file creates the `career_roadmap` database and all 11 tables. Importing it again is safe: it keeps existing data.
+vi. Or import from a terminal: `C:\xampp\mysql\bin\mysql.exe -u root < database.sql`
 vii. Copy `config/db.example.php` to `config/db.php` and set your MySQL user, password and database name.
 viii. Run the setup script once from the project folder: `C:\xampp\php\php.exe tools\setup.php`. It asks for the first admin's name, email and password, then adds sample careers and approved quiz questions (it skips anything that already exists).
-ix. Copy `.env.example` to `.env` and add your xAI API key as `XAI_API_KEY`. Create a key at [console.x.ai](https://console.x.ai/).
+ix. Copy `.env.example` to `.env` and choose the AI:
+   - **Grok (online):** add your xAI API key as `XAI_API_KEY`. Create a key at [console.x.ai](https://console.x.ai/). Usage is billed per token.
+   - **Ollama (free, offline):** install [Ollama](https://ollama.com/), run `ollama pull llama3.2`, and add `CAREER_AI_PROVIDER=ollama` to `.env`. No key is needed, but answers are slower on a laptop (the quiz result takes about 4 minutes).
 x. Run the project through localhost.
 
 7. Local Project URL
@@ -62,14 +64,15 @@ Career Roadmap aims to support students in making informed career decisions thro
 - `ai/generate_recommendation.php` builds the quiz recommendation. When Career Management has careers, that catalog and its required skills are included in the prompt. Results are stored in `career_recommendations` and shown to the student and on the admin AI Recommendations page.
 - `student/ai_assistant.php` remains the AI Assistant page and uses the shared function in `ai/career_assistant.php`.
 
-Career and recommendation tables are created by the application when their modules are first opened. AI features require internet access and a valid `XAI_API_KEY` in `.env`. To use another model available to your xAI account, change `CAREER_AI_MODEL` in `.env`.
+Career and recommendation tables are created by the application when their modules are first opened. With Grok, AI features require internet access and a valid `XAI_API_KEY` in `.env`. To use another model available to your xAI account, change `CAREER_AI_MODEL` in `.env`. With `CAREER_AI_PROVIDER=ollama`, the same features run on a local Ollama model (`OLLAMA_MODEL`, default `llama3.2`).
 
 10. How It Works
 
 **Accounts and roles**
-- A student registers on `register.php`. The account is saved as `pending` and the student can log in right away.
-- The admin reviews new registrations under Student Approvals. Approving moves the student to the Admin Student List.
-- `login.php` checks the hashed password and sends each user to the student or admin dashboard by role. Every student and admin page checks the session role and redirects to the login page if it does not match.
+- A student registers on `register.php` (valid email, password of 8+ characters typed twice, email not already used). The account is saved as `pending`.
+- A pending student cannot log in yet: the login page says the account is waiting for admin approval.
+- The admin reviews new registrations under Student Approvals. Approving moves the student to the Admin Student List, and the student can now log in.
+- `login.php` checks the hashed password and the approval status, then sends each user to the student or admin dashboard by role. Every student and admin page checks the session role and redirects to the login page if it does not match.
 
 **Student journey**
 1. **Career Interest Quiz** (`student/quiz.php`) shows the admin-approved questions one step at a time and keeps the answers in the session.
@@ -82,32 +85,93 @@ Career and recommendation tables are created by the application when their modul
 
 **Admin journey**
 - **Question management**: add, edit, approve or reject quiz questions. AI can draft questions (`ai/generate_questions.php`). Only approved questions appear in the quiz.
-- **Career Management** (`admin/careers.php`): add, edit and delete careers and their required skills. Saving also refreshes the `career_skills` rows.
-- **AI Recommendations**: read every saved student analysis.
+- **Career Management** (`admin/careers.php`): add, edit, delete and search careers and their required skills. Duplicate career names are blocked. Saving also refreshes the `career_skills` rows.
+- **AI Recommendations** (`admin/recommendations.php`): read every saved student analysis, search by student or career, and delete test results.
 - **Student Approvals / Student List** and **Admin Profile**.
 
 **AI layer**
-- All AI calls go through `careerAiGenerateText()` in `ai/ai_config.php`. It posts to xAI's Grok API and returns `ok`, `text` and `error`, so pages can show a friendly message when the key, network, or API request is unavailable.
+- All AI calls go through `careerAiGenerateText()` in `ai/ai_config.php`. It posts to xAI's Grok API (or to local Ollama when `CAREER_AI_PROVIDER=ollama`) and returns `ok`, `text` and `error`, so pages can show a friendly message when the key, network, or API request is unavailable.
 
 ```
 Browser ──> PHP page ──> MySQL (users, questions, careers, recommendations)
                     └──> ai/*.php ──> Grok API (xAI)
 ```
 
-11. Contributions by Asha
+11. Contributions by Suborna
 
-**Fixed**
-- **The AI features used a local model.** They now use the Grok API; set `XAI_API_KEY` in `.env` and choose the model with `CAREER_AI_MODEL`.
-- **The quiz result page had unresolved merge conflicts.** It now routes recommendation generation through the shared AI helper and saves the completed response to recommendation history.
-- **AI setup was unclear.** `.env.example` documents the required key without including a real secret.
+Team: **Hridita**, **Joynab** and **Suborna**. This section lists Suborna's part (GitHub: `ashasuborna`).
+
+**11.1 My files**
+
+| File | Feature area |
+|---|---|
+| `register.php` | Student registration |
+| `login.php` | Login and approval check |
+| `admin/careers.php` | Career Management |
+| `admin/recommendations.php` | AI Recommendations review |
+| `database.sql` | Database schema |
+| `DEMO_GUIDE.md` | Demo and test guide |
+
+**11.2 What I implemented**
+
+*Registration (`register.php`)*
+- Server-side checks, so the rules hold even if the browser form is bypassed: all fields required, name up to 100 characters (matches the `users.name` column), valid email, password of at least 8 characters.
+- **Confirm password** field; the two passwords must match.
+- Clear message when the email is already registered, checked before saving.
+- New students are saved as `pending` and sent to the login page with "Registration received! An admin must approve your account before you can log in."
+
+*Login (`login.php`)*
+- **Approval check:** a pending student cannot log in and sees "Your account is waiting for admin approval." After the admin approves the account in Student Approvals, the same login works.
+- One message, "Incorrect email or password.", for a wrong email or a wrong password, so the page does not reveal which emails are registered.
+- A new session ID after login (`session_regenerate_id`) to prevent session fixation. The user's email is also stored in the session.
+- Removed a blank line before `<?php` in both files; it sent output before the redirect headers.
+
+*Career Management (`admin/careers.php`)*
+- Add, edit and delete careers. Delete runs in one transaction and also removes the career's skill rows.
+- Every save also refreshes the `career_skills` rows used by the Skill Gap Checker.
+- **Duplicate names blocked** (case-insensitive), at least one required skill needed, and the form keeps what you typed when a save fails.
+- **Search** by career name, description or skill, with a result count.
+- **Totals** (number of careers and required skills), a skill count on each career, and skills shown as tags.
+
+*AI Recommendations (`admin/recommendations.php`)*
+- **Summary**: saved results, number of students, latest result date.
+- **Search** by student name, email or anything in the result (for example a career name).
+- **Delete** a saved result (for example a test run), with a confirmation.
+- Each result opens and closes with **Show / Hide**, so a long list stays readable.
+
+*Database (`database.sql`)*
+- Creates the `career_roadmap` database itself (`CREATE DATABASE IF NOT EXISTS` + `USE`), so it can be imported without creating the database first.
+- Every table uses `CREATE TABLE IF NOT EXISTS`, so importing again is safe and keeps data.
+- Removed the leftover `AUTO_INCREMENT=…` counters from the old export, so a new database starts IDs at 1.
+- Foreign key checks are paused during import, so tables can be created in any order.
+- Tested: a fresh import creates the same 11 tables and columns as the running database.
+
+*Demo guide (`DEMO_GUIDE.md`)*
+- Setup with free Ollama or Grok, the approval flow, a demo script for my part and a test checklist.
+
+**11.3 How to check my work (about 10 minutes)**
+1. Start the app (see `DEMO_GUIDE.md`, Part B) and open http://127.0.0.1:8080.
+2. **Register:** click Register and try a wrong email, a 5-character password and two different passwords. Each shows its own message. Then register correctly: you land on the login page with the "admin must approve" message.
+3. **Pending login:** log in with the new account. You see "Your account is waiting for admin approval."
+4. **Approve:** log in as admin → Student Approvals → **Save & approve**. Log out.
+5. **Approved login:** log in as the student. The Student Dashboard opens.
+6. **Wrong password:** log out and try a wrong password. You see "Incorrect email or password."
+7. **Career Management** (as admin): check the totals, search `sql`, add a career with skills on separate lines, try adding it again (blocked as a duplicate), edit it, then delete it.
+8. **AI Recommendations** (as admin): check the summary, search a student name, open and close a result, and delete a test result.
+9. **Database:** in phpMyAdmin import `database.sql` again. It finishes without errors and nothing is lost.
+
+**11.4 Earlier fixes and features (commits `b5cfd8b`, `9a0d0b3`, `f7839e7`)**
+
+*Fixed*
 - **`database.sql` could not be imported into a new database.** Tables were created before the tables their foreign keys point to. The script now pauses foreign key checks during import.
 - **The AI Career Assistant was open to anyone.** `student/ai_assistant.php` had no login check. It now requires a student login through the shared guard in `includes/auth_check.php`, which was previously an empty file.
 - **The public `test.php` page exposed the server configuration through `phpinfo()`.** It has been removed.
 
-**Developed**
+*Developed*
 - **First-time setup script** (`tools/setup.php`): creates the first admin account (registration only creates students, so there was no way to get an admin) and seeds 8 sample careers with 48 skills and 8 approved quiz questions. It is safe to run again.
 - **Skill Gap Checker** (`career/skills.php`): students tick the skills they have and get a match percentage, a progress bar and the list of missing skills.
 - **Roadmap focused on missing skills** (`career/roadmap.php`, `ai/generate_roadmap.php`): one click from the checker builds an AI roadmap that targets only the student's gaps.
 - **Delete careers** in Career Management (`admin/careers.php`): removes the career and its skill rows in one transaction and keeps old AI recommendation records.
 - **Database config template** (`config/db.example.php`): `config/db.php` is gitignored, so a fresh clone now has a template to copy.
+- **Free local AI option** (`ai/ai_config.php`): set `CAREER_AI_PROVIDER=ollama` in `.env` to run every AI feature on local Ollama (`llama3.2`) without an API key. Grok stays the default.
 - Updated the setup steps in this README and added the How It Works section.

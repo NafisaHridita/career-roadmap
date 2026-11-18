@@ -1,4 +1,3 @@
-
 <?php
 include 'config/db.php';
 require_once 'includes/module_helpers.php';
@@ -8,30 +7,50 @@ $message = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
-    $name = trim($_POST['name']);
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
+    $name = trim((string)($_POST['name'] ?? ''));
+    $email = trim((string)($_POST['email'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
+    $confirmPassword = (string)($_POST['confirm_password'] ?? '');
 
-    if (empty($name) || empty($email) || empty($password)) {
-        $message = "All fields are required!";
+    // Server-side checks, so the rules hold even if the browser form is bypassed.
+    if ($name === '' || $email === '' || $password === '') {
+        $message = "All fields are required.";
+    } elseif (mb_strlen($name) > 100) {
+        $message = "Name must be 100 characters or fewer.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 150) {
+        $message = "Enter a valid email address.";
+    } elseif (strlen($password) < 8) {
+        $message = "Password must be at least 8 characters.";
+    } elseif ($password !== $confirmPassword) {
+        $message = "The two passwords do not match.";
     } else {
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+        $check = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
+        $check->bind_param("s", $email);
+        $check->execute();
+        $exists = $check->get_result()->num_rows > 0;
+        $check->close();
 
-        $stmt = $conn->prepare(
-            "INSERT INTO users (name, email, password, role, account_status)
-             VALUES (?, ?, ?, 'student', 'pending')"
-        );
-
-        $stmt->bind_param("sss", $name, $email, $hashed_password);
-
-        if ($stmt->execute()) {
-            header("Location: login.php?registered=pending");
-            exit();
+        if ($exists) {
+            $message = "An account with this email already exists. Please log in instead.";
         } else {
-            $message = "Email already exists or registration failed!";
-        }
+            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-        $stmt->close();
+            // New students start as 'pending'; an admin approves them under Student Approvals.
+            $stmt = $conn->prepare(
+                "INSERT INTO users (name, email, password, role, account_status)
+                 VALUES (?, ?, ?, 'student', 'pending')"
+            );
+            $stmt->bind_param("sss", $name, $email, $hashed_password);
+
+            if ($stmt->execute()) {
+                header("Location: login.php?registered=pending");
+                exit();
+            }
+            $message = $conn->errno === 1062
+                ? "An account with this email already exists. Please log in instead."
+                : "Registration failed. Please try again.";
+            $stmt->close();
+        }
     }
 }
 ?>
@@ -107,15 +126,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <video class="welcome-video" autoplay muted loop playsinline preload="none" poster="assets/career-journey.svg" aria-hidden="true"><source src="https://videos.pexels.com/video-files/8939684/8939684-hd_1920_1080_25fps.mp4" type="video/mp4"></video><img class="welcome-art" src="assets/career-journey.svg" alt=""><svg class="auth-neon-lines" viewBox="0 0 800 900" preserveAspectRatio="none" aria-hidden="true"><path d="M-90 170 C180 310 150 80 400 260 S620 420 890 650"/><path d="M-90 760 C150 610 310 820 500 650 S700 700 880 480"/></svg>
             <a class="brand" href="index.php"><span class="brand-mark">↗</span>CareerRoadmap</a>
             <div class="welcome-copy"><div class="eyebrow">A little step toward your future</div><h1>Your journey<br>starts here.</h1><p>Create an account to explore careers, discover your skills, and plan what comes next.</p></div>
-            <p class="note">✨ Everyone is welcome. Register and log in to get started.</p>
+            <p class="note">✨ Everyone is welcome. Register, then log in once an admin approves your account.</p>
         </section>
         <section class="form-side">
             <h2>Create your account</h2><p class="subtitle">Set up your student profile in just a few steps.</p>
             <?php if ($message): ?><p class="error" role="alert"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
             <form method="post">
-                <label for="name">Full name</label><input id="name" type="text" name="name" autocomplete="name" maxlength="150" required value="<?= htmlspecialchars($_POST['name'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="Your name">
+                <label for="name">Full name</label><input id="name" type="text" name="name" autocomplete="name" maxlength="100" required value="<?= htmlspecialchars($_POST['name'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="Your name">
                 <label for="email">Email address</label><input id="email" type="email" name="email" autocomplete="email" required value="<?= htmlspecialchars($_POST['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="you@example.com">
-                <label for="password">Password</label><div class="password-wrap"><input id="password" type="password" name="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters"><button class="show-password" type="button" id="togglePassword">Show</button></div>
+                <label for="password">Password</label><div class="password-wrap"><input id="password" type="password" name="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters"><button class="show-password" type="button" id="togglePassword">Show</button></div>
+                <label for="confirm_password">Confirm password</label><input id="confirm_password" type="password" name="confirm_password" autocomplete="new-password" required minlength="8" placeholder="Type the password again">
                 <button class="submit" type="submit">Create account</button>
             </form>
             <p class="login">Already have an account? <a href="login.php">Log in</a></p>
