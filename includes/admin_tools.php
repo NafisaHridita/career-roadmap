@@ -16,6 +16,9 @@ function ensureAdminToolTables(mysqli $conn): bool
     static $ready = null;
     if ($ready !== null) return $ready;
 
+    // [ashasuborna] mysqli throws exceptions on errors (PHP 8.1+), so a database problem is caught
+    // here and the page keeps working without these extras instead of showing a fatal error.
+    try {
     $ok = (bool)$conn->query("CREATE TABLE IF NOT EXISTS login_attempts (
         attempt_id INT AUTO_INCREMENT PRIMARY KEY,
         email VARCHAR(150) NOT NULL,
@@ -46,8 +49,32 @@ function ensureAdminToolTables(mysqli $conn): bool
     $ok = $ok && ensureUserApprovalColumn($conn) && ensureCareerTables($conn)
         && ensureCareerColumn($conn, 'category', 'VARCHAR(60) NULL')
         && ensureCareerColumn($conn, 'demand_level', "ENUM('High','Medium','Low') NULL");
+    } catch (Throwable $e) {
+        error_log('CareerRoadmap admin tools setup failed: ' . $e->getMessage());
+        $ok = false;
+    }
 
     return $ready = $ok;
+}
+
+// [ashasuborna] Runs a database step and returns $fallback if it throws, so logging and
+// lockout bookkeeping can never break the page that called them.
+function adminToolsSafely(callable $step, $fallback)
+{
+    try {
+        return $step();
+    } catch (Throwable $e) {
+        error_log('CareerRoadmap admin tools: ' . $e->getMessage());
+        return $fallback;
+    }
+}
+
+// [ashasuborna] Reads a form or URL value as text. A value sent as a list (for example ?q[]=x)
+// becomes '' instead of causing warnings or a fatal TypeError.
+function requestText(array $source, string $key): string
+{
+    $value = $source[$key] ?? '';
+    return is_string($value) ? trim($value) : '';
 }
 
 function adminToolsClientIp(): string
@@ -64,11 +91,13 @@ function logActivity(mysqli $conn, string $action, string $details = '', ?int $u
     if ($userName === null && isset($_SESSION['name'])) $userName = (string)$_SESSION['name'];
     $details = mb_substr($details, 0, 255);
     $ip = adminToolsClientIp();
-    $stmt = $conn->prepare('INSERT INTO activity_log (user_id, user_name, action, details, ip_address) VALUES (?, ?, ?, ?, ?)');
-    if (!$stmt) return;
-    $stmt->bind_param('issss', $userId, $userName, $action, $details, $ip);
-    $stmt->execute();
-    $stmt->close();
+    adminToolsSafely(function () use ($conn, $userId, $userName, $action, $details, $ip) {
+        $stmt = $conn->prepare('INSERT INTO activity_log (user_id, user_name, action, details, ip_address) VALUES (?, ?, ?, ?, ?)');
+        $stmt->bind_param('issss', $userId, $userName, $action, $details, $ip);
+        $stmt->execute();
+        $stmt->close();
+        return true;
+    }, false);
 }
 
 // Failed logins for this email from this computer in the last LOGIN_LOCK_MINUTES.
@@ -81,13 +110,16 @@ function loginLockStatus(mysqli $conn, string $email): array
     $email = strtolower(trim($email));
     $ip = adminToolsClientIp();
     $window = LOGIN_LOCK_MINUTES;
-    $stmt = $conn->prepare('SELECT COUNT(*) AS n, TIMESTAMPDIFF(SECOND, NOW(), MAX(attempted_at) + INTERVAL ? MINUTE) AS secs
-        FROM login_attempts WHERE email = ? AND ip_address = ? AND success = 0 AND attempted_at > NOW() - INTERVAL ? MINUTE');
-    if (!$stmt) return $status;
-    $stmt->bind_param('issi', $window, $email, $ip, $window);
-    $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
+    $row = adminToolsSafely(function () use ($conn, $window, $email, $ip) {
+        $stmt = $conn->prepare('SELECT COUNT(*) AS n, TIMESTAMPDIFF(SECOND, NOW(), MAX(attempted_at) + INTERVAL ? MINUTE) AS secs
+            FROM login_attempts WHERE email = ? AND ip_address = ? AND success = 0 AND attempted_at > NOW() - INTERVAL ? MINUTE');
+        $stmt->bind_param('issi', $window, $email, $ip, $window);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        return $row;
+    }, null);
+    if (!$row) return $status;
 
     $failures = (int)($row['n'] ?? 0);
     $status['failures'] = $failures;
@@ -105,17 +137,20 @@ function recordLoginAttempt(mysqli $conn, string $email, bool $success): void
     if (!ensureAdminToolTables($conn)) return;
     $email = strtolower(trim($email));
     $ip = adminToolsClientIp();
-    if ($success) {
-        $stmt = $conn->prepare('DELETE FROM login_attempts WHERE email = ? AND ip_address = ? AND success = 0');
-        $stmt->bind_param('ss', $email, $ip);
+    adminToolsSafely(function () use ($conn, $email, $ip, $success) {
+        if ($success) {
+            $stmt = $conn->prepare('DELETE FROM login_attempts WHERE email = ? AND ip_address = ? AND success = 0');
+            $stmt->bind_param('ss', $email, $ip);
+            $stmt->execute();
+            $stmt->close();
+        }
+        $flag = $success ? 1 : 0;
+        $stmt = $conn->prepare('INSERT INTO login_attempts (email, ip_address, success) VALUES (?, ?, ?)');
+        $stmt->bind_param('ssi', $email, $ip, $flag);
         $stmt->execute();
         $stmt->close();
-    }
-    $flag = $success ? 1 : 0;
-    $stmt = $conn->prepare('INSERT INTO login_attempts (email, ip_address, success) VALUES (?, ?, ?)');
-    $stmt->bind_param('ssi', $email, $ip, $flag);
-    $stmt->execute();
-    $stmt->close();
+        return true;
+    }, false);
 }
 
 // Emails locked right now (any computer), for the admin "Locked logins" list.
@@ -125,25 +160,30 @@ function lockedLogins(mysqli $conn): array
     if (!ensureAdminToolTables($conn)) return [];
     $window = LOGIN_LOCK_MINUTES;
     $max = LOGIN_MAX_FAILURES;
-    $stmt = $conn->prepare('SELECT email, ip_address, COUNT(*) AS failures, MAX(attempted_at) AS last_attempt
-        FROM login_attempts WHERE success = 0 AND attempted_at > NOW() - INTERVAL ? MINUTE
-        GROUP BY email, ip_address HAVING COUNT(*) >= ? ORDER BY last_attempt DESC');
-    $stmt->bind_param('ii', $window, $max);
-    $stmt->execute();
-    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
-    return $rows;
+    return adminToolsSafely(function () use ($conn, $window, $max) {
+        $stmt = $conn->prepare('SELECT email, ip_address, COUNT(*) AS failures, MAX(attempted_at) AS last_attempt
+            FROM login_attempts WHERE success = 0 AND attempted_at > NOW() - INTERVAL ? MINUTE
+            GROUP BY email, ip_address HAVING COUNT(*) >= ? ORDER BY last_attempt DESC');
+        $stmt->bind_param('ii', $window, $max);
+        $stmt->execute();
+        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+        return $rows;
+    }, []);
 }
 
 function unlockLogin(mysqli $conn, string $email): int
 {
     if (!ensureAdminToolTables($conn)) return 0;
-    $stmt = $conn->prepare('DELETE FROM login_attempts WHERE email = ? AND success = 0');
-    $stmt->bind_param('s', $email);
-    $stmt->execute();
-    $count = $stmt->affected_rows;
-    $stmt->close();
-    return $count;
+    $email = strtolower(trim($email));
+    return adminToolsSafely(function () use ($conn, $email) {
+        $stmt = $conn->prepare('DELETE FROM login_attempts WHERE email = ? AND success = 0');
+        $stmt->bind_param('s', $email);
+        $stmt->execute();
+        $count = $stmt->affected_rows;
+        $stmt->close();
+        return $count;
+    }, 0);
 }
 
 // [ashasuborna] Shared top navigation for the admin tool pages (#25).

@@ -135,4 +135,4 @@ document.addEventListener('click',event=>{if(!event.target.closest('.avatar-wrap
 function toggleCustomApp(select){const custom=select.parentElement.querySelector('input[name="custom_app[]"]');custom.style.display=select.value==='Other'?'block':'none';if(select.value!=='Other')custom.value='';}
 const socialList=document.getElementById('socialList'),socialTemplate=document.getElementById('socialTemplate'),addSocial=document.getElementById('addSocial');
 if(addSocial)addSocial.addEventListener('click',()=>socialList.appendChild(socialTemplate.content.cloneNode(true)));
-</script></body></html>
+</script><script src="../assets/page-navigation.js" defer></script></body></html>

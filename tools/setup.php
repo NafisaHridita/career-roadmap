@@ -6,6 +6,7 @@
 // Running it again is safe: it skips anything that already exists.
 // [ashasuborna] First-time setup: admin, sample careers and questions; safe to rerun (#40)
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit(); }
+$adminOnly = in_array('--admin-only', $argv ?? [], true);
 
 require __DIR__ . '/../config/db.php';
 require __DIR__ . '/../includes/module_helpers.php';
@@ -31,10 +32,39 @@ if ($admins > 0) {
         exit(1);
     }
     $hash = password_hash($password, PASSWORD_DEFAULT);
-    $stmt = $conn->prepare("INSERT INTO users (name, email, password, role, account_status) VALUES (?, ?, ?, 'admin', 'approved')");
-    $stmt->bind_param('sss', $name, $email, $hash);
-    if (!$stmt->execute()) { fwrite(STDERR, 'Could not create admin: ' . $conn->error . "\n"); exit(1); }
-    echo "Admin account created for {$email}.\n";
+    // A deleted admin may still have a student row with the same unique email.
+    // Promote that existing account so its user_id and related records survive.
+    // [ashasuborna] PHP 8.1+ mysqli throws exceptions on errors (for example a duplicate email),
+    // so catch them and print a clear message instead of a fatal error.
+    try {
+        $find = $conn->prepare('SELECT user_id FROM users WHERE email = ? LIMIT 1');
+        $find->bind_param('s', $email);
+        if (!$find->execute()) { fwrite(STDERR, "Could not check the email address.\n"); exit(1); }
+        $existing = $find->get_result()->fetch_assoc();
+        if ($existing) {
+            $userId = (int) $existing['user_id'];
+            $stmt = $conn->prepare("UPDATE users SET name = ?, password = ?, role = 'admin', account_status = 'approved' WHERE user_id = ?");
+            $stmt->bind_param('ssi', $name, $hash, $userId);
+            if (!$stmt->execute()) { fwrite(STDERR, "Could not restore the existing account as admin.\n"); exit(1); }
+            echo "Existing account promoted to admin for {$email}; its user ID and related records were preserved.\n";
+        } else {
+            $stmt = $conn->prepare("INSERT INTO users (name, email, password, role, account_status) VALUES (?, ?, ?, 'admin', 'approved')");
+            $stmt->bind_param('sss', $name, $email, $hash);
+            if (!$stmt->execute()) { fwrite(STDERR, "Could not create admin account. Check the database and try again.\n"); exit(1); }
+            echo "Admin account created for {$email}.\n";
+        }
+    } catch (mysqli_sql_exception $e) {
+        $reason = (int)$e->getCode() === 1062 ? 'That email is already used by another account.' : 'Check that MySQL is running and the database was imported.';
+        fwrite(STDERR, "Could not create the admin account. {$reason} Nothing was changed.\n");
+        exit(1);
+    }
+}
+
+// Admin recovery should not seed sample careers/questions or alter existing
+// project content. Use: php tools/setup.php --admin-only
+if ($adminOnly) {
+    echo "Admin-only setup finished. Career and quiz data were not changed.\n";
+    exit();
 }
 
 // 2. Sample careers (with skill rows for the skill gap checker)

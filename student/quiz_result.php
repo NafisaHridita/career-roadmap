@@ -194,5 +194,5 @@ if(initialRecommendation){renderRecommendation(initialRecommendation);statusBox.
 else if(initialResultText){const rawResult=makeElement('article','reality-card',initialResultText);rawResult.style.whiteSpace='pre-wrap';resultBox.append(rawResult);statusBox.textContent=resultWasSaved?'Saved to your recommendation history.':'Your result is ready, but could not be saved to history.';}
 else{const emptyState=makeElement('article','error-card');emptyState.append(makeElement('p','','No completed quiz result was found. Start the quiz to generate your career map.'));const retry=makeElement('a','video-link','Start the quiz');retry.href='quiz.php';emptyState.append(retry);resultBox.append(emptyState);}
 </script>
-</body>
+<script src="../assets/page-navigation.js" defer></script></body>
 </html>

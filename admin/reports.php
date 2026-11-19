@@ -19,12 +19,12 @@ $admins=scalar($conn,"SELECT COUNT(*) FROM users WHERE role='admin'");
 $careerCount=scalar($conn,'SELECT COUNT(*) FROM careers');
 $skillCount=scalar($conn,'SELECT COUNT(*) FROM career_skills');
 $recCount=scalar($conn,'SELECT COUNT(*) FROM career_recommendations');
-// Approved students who have at least one saved AI quiz result.
-$quizStudents=scalar($conn,"SELECT COUNT(DISTINCT r.user_id) FROM career_recommendations r JOIN users u ON u.user_id=r.user_id WHERE u.role='student' AND u.account_status='approved'");
+// Students (all) who have at least one saved AI quiz result. account_status only marks the admin's list, not access.
+$quizStudents=scalar($conn,"SELECT COUNT(DISTINCT r.user_id) FROM career_recommendations r JOIN users u ON u.user_id=r.user_id WHERE u.role='student'");
 $logins=scalar($conn,"SELECT COUNT(*) FROM activity_log WHERE action='login_success' AND created_at > NOW() - INTERVAL {$days} DAY");
 $failed=scalar($conn,"SELECT COUNT(*) FROM activity_log WHERE action IN ('login_failed','login_locked','login_blocked') AND created_at > NOW() - INTERVAL {$days} DAY");
 $students=$approved+$pending;
-$quizRate=$approved>0?round(min(100,$quizStudents/$approved*100)):0;
+$quizRate=($approved+$pending)>0?round(min(100,$quizStudents/($approved+$pending)*100)):0;
 
 // Daily counts for the last $days days (missing days filled with 0).
 // Uses the database clock so the days match DATE(created_at) even if PHP's timezone differs.
@@ -99,11 +99,11 @@ $generatedAt=(string)$conn->query("SELECT DATE_FORMAT(NOW(),'%e %b %Y, %l:%i %p'
 <form method="get" class="toolbar"><label class="hint">Period <select name="days" onchange="this.form.submit()"><?php foreach([7,14,30] as $d):?><option value="<?=$d?>"<?=$d===$days?' selected':''?>>Last <?=$d?> days</option><?php endforeach;?></select></label><noscript><button>Show</button></noscript><button type="button" class="no-print" onclick="window.print()">🖨 Print report</button><a class="btn-link" href="export.php?type=students">⬇ Students CSV</a></form></div>
 
 <section class="kpis" aria-label="Key numbers">
-<div class="kpi"><b><?=$approved?></b><span>Approved students</span></div>
-<div class="kpi warn"><b><?=$pending?></b><span>Waiting for approval</span></div>
+<div class="kpi"><b><?=$approved?></b><span>Students in admin list</span></div>
+<div class="kpi warn"><b><?=$pending?></b><span>New students (not yet saved)</span></div>
 <div class="kpi"><b><?=$careerCount?></b><span>Careers · <?=$skillCount?> skills</span></div>
 <div class="kpi"><b><?=$recCount?></b><span>AI quiz results saved</span></div>
-<div class="kpi"><b><?=$quizRate?>%</b><span>Approved students who took the quiz</span></div>
+<div class="kpi"><b><?=$quizRate?>%</b><span>Students who took the quiz</span></div>
 <div class="kpi"><b><?=$logins?></b><span>Logins (last <?=$days?> days)</span></div>
 <div class="kpi bad"><b><?=$failed?></b><span>Failed or blocked logins</span></div>
 <div class="kpi"><b><?=$admins?></b><span>Admins</span></div>
@@ -113,11 +113,11 @@ $generatedAt=(string)$conn->query("SELECT DATE_FORMAT(NOW(),'%e %b %Y, %l:%i %p'
 <section class="card"><h2>New student registrations</h2><p class="sub">Per day, last <?=$days?> days</p><?=columns($signups,'linear-gradient(#7ff0e0,#3cb4c8)')?></section>
 <section class="card"><h2>AI quiz results</h2><p class="sub">Career analyses saved per day, last <?=$days?> days</p><?=columns($quizzes,'linear-gradient(#a78bfa,#6d5bd0)')?></section>
 <section class="card"><h2>Most recommended careers</h2><p class="sub">How many saved AI results mention each career</p><?=hbars($topCareers,'results','linear-gradient(90deg,#61e9d9,#8b91ff)')?></section>
-<section class="card"><h2>Student accounts</h2><p class="sub">Approved vs waiting for approval</p>
+<section class="card"><h2>Student accounts</h2><p class="sub">Saved to the admin list vs new registrations</p>
 <div class="donut-wrap"><div class="donut" style="background:conic-gradient(#48d6a8 0 <?=$approvedPct?>%,#ffd166 <?=$approvedPct?>% 100%)"><i><?=$students?></i></div>
-<ul class="legend"><li><b style="background:#48d6a8"></b>Approved: <?=$approved?> (<?=$approvedPct?>%)</li><li><b style="background:#ffd166"></b>Pending: <?=$pending?> (<?=100-$approvedPct?>%)</li><li class="hint">Approve students in <a href="students.php">Student Approvals</a></li></ul></div></section>
+<ul class="legend"><li><b style="background:#48d6a8"></b>In admin list: <?=$approved?> (<?=$approvedPct?>%)</li><li><b style="background:#ffd166"></b>New: <?=$pending?> (<?=100-$approvedPct?>%)</li><li class="hint">Save students to the list in <a href="students.php">Student Approvals</a></li></ul></div></section>
 <section class="card"><h2>Careers by category</h2><p class="sub">Set the category in Career Management</p><?=hbars($byCategory,'careers','linear-gradient(90deg,#8b91ff,#c6c9ff)')?></section>
 <section class="card"><h2>Job demand</h2><p class="sub">Careers per demand level</p><?=hbars(array_filter($byDemand),'careers','linear-gradient(90deg,#48d6a8,#ffd166)')?></section>
 <section class="card"><h2>Most needed skills</h2><p class="sub">Skills required by the most careers</p><?=hbars($topSkills,'careers','linear-gradient(90deg,#ffb36b,#ff7a99)')?></section>
 </div>
-</main></body></html>
+</main><script src="../assets/page-navigation.js" defer></script></body></html>

@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['delete_career']) && !$e
     }
 }
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['save_career']) && !$error) {
-    $id=(int)($_POST['career_id']??0); $name=trim($_POST['career_name']??''); $description=trim($_POST['description']??''); $skills=trim($_POST['required_skills']??'');
+    $id=(int)($_POST['career_id']??0); $name=requestText($_POST,'career_name'); $description=requestText($_POST,'description'); $skills=requestText($_POST,'required_skills');
     // [ashasuborna] Career category and job demand (#16)
     // Category and demand level are optional; anything outside the lists is saved as empty (NULL).
     $category=in_array($_POST['category']??'',CAREER_CATEGORIES,true)?$_POST['category']:null;
@@ -58,7 +58,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['save_career']) && !$err
     elseif (mb_strlen($name)>150) $error='Career name must be 150 characters or fewer.';
     elseif (!adminCareerSkillList($skills)) $error='Add at least one required skill (one per line).';
     elseif (adminCareerNameTaken($conn,$name,$id)) $error='A career named "'.$name.'" already exists. Edit that career instead.';
-    else if ($id>0) {
+    // [ashasuborna] mysqli throws exceptions on database errors (PHP 8.1+); show a message instead of a fatal error (#11)
+    else try {
+    if ($id>0) {
         $stmt=$conn->prepare('UPDATE careers SET career_name=?,description=?,required_skills=?,category=?,demand_level=? WHERE career_id=?');
         if (!$stmt) $error='Could not update career.';
         else {
@@ -84,16 +86,20 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['save_career']) && !$err
             $stmt->close();
         }
     }
+    } catch (mysqli_sql_exception $e) {
+        error_log('CareerRoadmap career save failed: '.$e->getMessage());
+        $error=$id>0?'Could not update career. Please try again.':'Could not add career. Please try again.';
+    }
 }
 $edit=null; if(isset($_GET['edit'])) { $id=(int)$_GET['edit']; $stmt=$conn->prepare('SELECT * FROM careers WHERE career_id=?'); $stmt->bind_param('i',$id); $stmt->execute(); $edit=$stmt->get_result()->fetch_assoc(); $stmt->close(); }
 // [ashasuborna] Form keeps input when a save fails (#13)
 // Keep what the admin typed when saving fails, so nothing has to be retyped.
 $form=$edit?:[];
-if ($error && isset($_POST['save_career'])) $form=['career_id'=>(int)($_POST['career_id']??0),'career_name'=>trim($_POST['career_name']??''),'description'=>trim($_POST['description']??''),'required_skills'=>trim($_POST['required_skills']??''),'category'=>$_POST['category']??'','demand_level'=>$_POST['demand_level']??''];
+if ($error && isset($_POST['save_career'])) $form=['career_id'=>(int)($_POST['career_id']??0),'career_name'=>requestText($_POST,'career_name'),'description'=>requestText($_POST,'description'),'required_skills'=>requestText($_POST,'required_skills'),'category'=>requestText($_POST,'category'),'demand_level'=>requestText($_POST,'demand_level')];
 $isEditing=(int)($form['career_id']??0)>0;
 // [ashasuborna] Search and category/demand filters (#14, #16)
 // Search by career name, description or skill, and filter by category and demand level.
-$search=trim((string)($_GET['q']??''));
+$search=requestText($_GET,'q');
 $filterCategory=in_array($_GET['category']??'',CAREER_CATEGORIES,true)?$_GET['category']:'';
 $filterDemand=in_array($_GET['demand']??'',CAREER_DEMAND_LEVELS,true)?$_GET['demand']:'';
 $where=[]; $types=''; $params=[];
@@ -118,4 +124,4 @@ function e($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
 <section><h2>Careers</h2><form method="get" class="search filters"><input type="search" name="q" value="<?=e($search)?>" placeholder="Search name, description or skill" aria-label="Search careers"><select name="category" aria-label="Filter by category"><option value="">All categories</option><?php foreach(CAREER_CATEGORIES as $cat):?><option<?=$filterCategory===$cat?' selected':''?>><?=e($cat)?></option><?php endforeach;?></select><select name="demand" aria-label="Filter by demand"><option value="">Any demand</option><?php foreach(CAREER_DEMAND_LEVELS as $lvl):?><option<?=$filterDemand===$lvl?' selected':''?>><?=e($lvl)?></option><?php endforeach;?></select><button>Filter</button><?php if($filtering):?> <a href="careers.php">Clear</a><?php endif;?></form>
 <?php if($filtering):?><p class="hint"><?=(int)$careers->num_rows?> result(s)<?= $search!==''?' for "'.e($search).'"':'' ?><?= $filterCategory!==''?' in '.e($filterCategory):'' ?><?= $filterDemand!==''?' · '.e($filterDemand).' demand':'' ?></p><?php endif;?>
 <?php if($careers->num_rows===0):?><p class="hint"><?= $filtering?'No careers match your search or filters.':'No careers yet. Add the first one with the form.' ?></p><?php endif;?>
-<?php while($c=$careers->fetch_assoc()): $list=adminCareerSkillList((string)$c['required_skills']);?><article><h3><?=e($c['career_name'])?> <small class="count"><?=count($list)?> skill<?=count($list)===1?'':'s'?></small></h3><p class="badges"><?php if(!empty($c['category'])):?><span class="badge cat"><?=e($c['category'])?></span><?php endif;?><?php if(!empty($c['demand_level'])):?><span class="badge demand-<?=strtolower(e($c['demand_level']))?>"><?=e($c['demand_level'])?> demand</span><?php endif;?></p><p><?=nl2br(e($c['description']))?></p><p><?php foreach($list as $s):?><span class="pill"><?=e($s)?></span><?php endforeach;?></p><a href="?edit=<?=(int)$c['career_id']?>">Edit</a> <form method="post" style="display:inline" onsubmit="return confirm('Delete this career and its skill list?')"><input type="hidden" name="career_id" value="<?=(int)$c['career_id']?>"><button class="danger" name="delete_career" value="1">Delete</button></form></article><?php endwhile;?></section></div></main></body></html>
+<?php while($c=$careers->fetch_assoc()): $list=adminCareerSkillList((string)$c['required_skills']);?><article><h3><?=e($c['career_name'])?> <small class="count"><?=count($list)?> skill<?=count($list)===1?'':'s'?></small></h3><p class="badges"><?php if(!empty($c['category'])):?><span class="badge cat"><?=e($c['category'])?></span><?php endif;?><?php if(!empty($c['demand_level'])):?><span class="badge demand-<?=strtolower(e($c['demand_level']))?>"><?=e($c['demand_level'])?> demand</span><?php endif;?></p><p><?=nl2br(e($c['description']))?></p><p><?php foreach($list as $s):?><span class="pill"><?=e($s)?></span><?php endforeach;?></p><a href="?edit=<?=(int)$c['career_id']?>">Edit</a> <form method="post" style="display:inline" onsubmit="return confirm('Delete this career and its skill list?')"><input type="hidden" name="career_id" value="<?=(int)$c['career_id']?>"><button class="danger" name="delete_career" value="1">Delete</button></form></article><?php endwhile;?></section></div></main><script src="../assets/page-navigation.js" defer></script></body></html>

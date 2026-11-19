@@ -121,5 +121,5 @@ if(selectAll)selectAll.addEventListener('change',()=>{selectedQuestions.forEach(
 selectedQuestions.forEach(box=>box.addEventListener('change',updateSelection));
 document.getElementById('bulkDeleteForm')?.addEventListener('submit',event=>{const count=selectedQuestions.filter(box=>box.checked).length;if(!count){event.preventDefault();return}if(!confirm(`Delete ${count} selected approved question${count===1?'':'s'} and their answer options?`))event.preventDefault()});
 </script>
-</body>
+<script src="../assets/page-navigation.js" defer></script></body>
 </html>

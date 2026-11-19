@@ -107,5 +107,5 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 </div>
 
-</body>
+<script src="../assets/page-navigation.js" defer></script></body>
 </html>

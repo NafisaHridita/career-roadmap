@@ -3,7 +3,7 @@ session_start();
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'student') { header('Location: ../login.php'); exit(); }
 require_once '../config/db.php';
 require_once '../includes/module_helpers.php';
-$userId=(int)$_SESSION['user_id']; $error=''; $message=$_SESSION['student_profile_flash']??''; unset($_SESSION['student_profile_flash']); $viewOnly=(($_GET['view']??'')==='1');
+$userId=(int)$_SESSION['user_id']; $error=''; $message=$_SESSION['student_profile_flash']??''; unset($_SESSION['student_profile_flash']); $viewOnly=(($_GET['edit']??'')!=='1');
 $uploadDir=__DIR__.'/../assets/uploads/student_profiles';
 if (!is_dir($uploadDir)) @mkdir($uploadDir,0755,true);
 if (!isset($_SESSION['student_profile_token'])) $_SESSION['student_profile_token']=bin2hex(random_bytes(32));
@@ -42,6 +42,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && !$error) {
         elseif (!filter_var($email,FILTER_VALIDATE_EMAIL) || strlen($email)>255) $error='Enter a valid email address.';
         elseif ($phone!=='' && !preg_match('/^[0-9+() .-]{7,40}$/',$phone)) $error='Enter a valid phone number.';
         else {
+            $emailCheck=$conn->prepare('SELECT user_id FROM users WHERE email=? AND user_id<>? LIMIT 1'); $emailCheck->bind_param('si',$email,$userId); $emailCheck->execute(); $emailTaken=(bool)$emailCheck->get_result()->fetch_assoc(); $emailCheck->close();
+            if ($emailTaken) $error='That email address is already in use.';
             foreach (['website'=>$website] as $label=>$url) {
                 if ($url!=='' && (!filter_var($url,FILTER_VALIDATE_URL) || !in_array(strtolower((string)parse_url($url,PHP_URL_SCHEME)),['http','https'],true))) { $error="Enter a valid http(s) URL for {$label}."; break; }
             }
@@ -136,4 +138,5 @@ document.addEventListener('click',event=>{if(!event.target.closest('.avatar-wrap
 function toggleCustomApp(select){const custom=select.parentElement.querySelector('input[name="custom_app[]"]');custom.style.display=select.value==='Other'?'block':'none';if(select.value!=='Other')custom.value='';}
 const socialList=document.getElementById('socialList'),socialTemplate=document.getElementById('socialTemplate'),addSocial=document.getElementById('addSocial');
 if(addSocial)addSocial.addEventListener('click',()=>socialList.appendChild(socialTemplate.content.cloneNode(true)));
-</script></body></html>
+document.querySelectorAll('input[name="phone"],input[name="website"]').forEach(field=>{const label=field.closest('label'),wrap=document.createElement('div'),clear=document.createElement('button');wrap.className='contact-control';clear.type='button';clear.className='secondary';clear.textContent='Remove';clear.setAttribute('aria-label','Remove '+(field.name==='phone'?'phone number':'website'));clear.addEventListener('click',()=>{field.value='';field.focus();});label.replaceWith(wrap);wrap.append(label,clear);});
+</script><script src="../assets/page-navigation.js" defer></script></body></html>

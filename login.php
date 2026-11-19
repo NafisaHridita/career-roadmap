@@ -4,7 +4,7 @@ include 'config/db.php';
 require_once 'includes/module_helpers.php';
 // [ashasuborna] Login lockout and activity log helpers (#6, #23)
 require_once 'includes/admin_tools.php';
-// Older databases may not have the approval column yet; add it so the status check below works.
+// Older databases may not have the account_status column yet (used by the admin Student List).
 ensureUserApprovalColumn($conn);
 // Login attempts and activity log tables (for the lockout below).
 ensureAdminToolTables($conn);
@@ -13,19 +13,19 @@ $message = "";
 $messageType = "error";
 
 // Messages shown after redirects from other pages.
-// [ashasuborna] Message after registration: admin must approve (#4)
-if (($_GET['registered'] ?? '') === 'pending') {
-    $message = "Registration received! An admin must approve your account before you can log in.";
-    $messageType = "success";
-} elseif (isset($_GET['registered'])) {
+if (isset($_GET['registered'])) {
     $message = "Registration successful! You can log in now.";
+    $messageType = "success";
+}
+if (isset($_GET['account_deleted'])) {
+    $message = "Your account and associated quiz data have been deleted.";
     $messageType = "success";
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
-    $email = trim((string)($_POST['email'] ?? ''));
-    $password = (string)($_POST['password'] ?? '');
+    $email = requestText($_POST, 'email');
+    $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
 
     if ($email === '' || $password === '') {
         $message = "Enter your email and password.";
@@ -60,13 +60,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $messageType = "error";
                 logActivity($conn, 'login_failed', "Wrong email or password for {$email}", null, null);
             }
-        } elseif ($user['role'] === 'student' && ($user['account_status'] ?? 'approved') !== 'approved') {
-            // [ashasuborna] Admin approval required before login (#5)
-            // New students stay pending until an admin approves them under Student Approvals.
-            $message = "Your account is waiting for admin approval. Please try again after an admin approves it.";
-            $messageType = "pending";
-            logActivity($conn, 'login_pending', "Pending student tried to log in: {$email}", (int)$user['user_id'], $user['name']);
         } else {
+            // Team rule: verified students can log in right away. account_status only controls
+            // the admin's Student List (Student Approvals), never login.
             recordLoginAttempt($conn, $email, true);
             // [ashasuborna] New session ID and email in session (#8)
             // New session ID after login protects against session fixation.
@@ -138,7 +134,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.welcome-video{display:none!important}}
 </style>
 <style>
-    .form-side .alert.pending{color:#ffe3a3;background:#2e2814;border-color:#6b5a26}
     .form-side .alert.locked{color:#ffd0d8;background:#3a1420;border-color:#a33a57;font-weight:600}
     .form-side .alert.locked:before{content:"🔒 "}
 </style>
@@ -163,11 +158,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <?php endif; ?>
             <form method="post">
                 <label for="email">Email address</label>
-                <input id="email" type="email" name="email" autocomplete="username" required value="<?= htmlspecialchars($_POST['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="you@example.com">
+                <input id="email" type="email" name="email" autocomplete="username" required value="<?= htmlspecialchars(requestText($_POST, 'email'), ENT_QUOTES, 'UTF-8') ?>" placeholder="you@example.com">
                 <label for="password">Password</label>
                 <div class="password-wrap"><input id="password" type="password" name="password" autocomplete="current-password" required placeholder="Enter your password"><button class="show-password" type="button" id="togglePassword">Show</button></div>
                 <button class="submit" type="submit">Log in</button>
             </form>
+            <p class="register" style="margin-top:14px"><a href="forgot_password.php">Forgot password?</a></p>
             <p class="register">New to CareerRoadmap? <a href="register.php">Create an account</a></p>
         </section>
     </main>
@@ -179,5 +175,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             this.textContent = showing ? 'Hide' : 'Show';
         });
     </script>
-</body>
+<script src="assets/page-navigation.js" defer></script></body>
 </html>

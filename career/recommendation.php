@@ -6,5 +6,5 @@ careerPageStyles('My career recommendations');echo '<main class="career-wrap">';
 if(!$ready) echo '<p class="notice">Recommendation history is not available.</p>';
 elseif(!$recommendations||$recommendations->num_rows===0) echo '<p class="content-box">You do not have a quiz recommendation yet. Take the Career Interest Quiz to get started.</p><a class="career-link" href="../student/quiz.php">Take the quiz</a>';
 else{while($item=$recommendations->fetch_assoc())echo '<article class="content-box"><small>'.careerPageEscape($item['created_at']).'</small><br>'.nl2br(careerPageEscape($item['result_text'])).'</article>';}
-echo '</main></body></html>';
+echo '</main><script src="../assets/page-navigation.js" defer></script></body></html>';
 ?>

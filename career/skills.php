@@ -40,5 +40,5 @@ elseif($id){
 }
 elseif(!$careers||$careers->num_rows===0) echo '<p class="content-box">No career skills are listed yet.</p>';
 else{echo '<section class="career-grid">';while($career=$careers->fetch_assoc()){echo '<article class="career-card"><h2>'.careerPageEscape($career['career_name']).'</h2>'; $skills=careerPageSkills($career['required_skills']??''); if($skills){foreach($skills as $skill)echo '<span class="skill-pill">'.careerPageEscape($skill).'</span>';}else echo '<p>No skills listed yet.</p>'; echo '<p><a class="career-link" href="skills.php?id='.(int)$career['career_id'].'">Check my skill gap</a></p></article>';}echo '</section>';}
-echo '</main></body></html>';
+echo '</main><script src="../assets/page-navigation.js" defer></script></body></html>';
 ?>

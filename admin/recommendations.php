@@ -12,7 +12,7 @@ if (!$ready) $error='Could not prepare recommendations storage. Check database p
 if ($ready && $_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['delete_recommendation'])) {
     $id=filter_input(INPUT_POST,'recommendation_id',FILTER_VALIDATE_INT);
     if (!$id) $error='Recommendation ID is missing.';
-    else {
+    else try {
         $who=$conn->prepare('SELECT u.name FROM career_recommendations r LEFT JOIN users u ON u.user_id=r.user_id WHERE r.recommendation_id=?');
         $who->bind_param('i',$id); $who->execute(); $student=(string)($who->get_result()->fetch_assoc()['name']??'deleted student'); $who->close();
         $stmt=$conn->prepare('DELETE FROM career_recommendations WHERE recommendation_id=?');
@@ -20,13 +20,17 @@ if ($ready && $_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['delete_recomm
         if ($stmt->execute() && $stmt->affected_rows===1) { $stmt->close(); logActivity($conn,'recommendation_deleted',"Deleted AI result #{$id} of {$student}"); header('Location: recommendations.php?deleted=1'); exit(); }
         $error='Could not delete this recommendation. It may already be removed.';
         $stmt->close();
+    } catch (mysqli_sql_exception $e) {
+        // [ashasuborna] Database errors show a message instead of a fatal error (#20)
+        error_log('CareerRoadmap recommendation delete failed: '.$e->getMessage());
+        $error='Could not delete this recommendation. Please try again.';
     }
 }
 if (isset($_GET['deleted'])) $message='Recommendation deleted.';
 
 // [ashasuborna] Search (#19)
 // Search by student name, email or anything in the AI result text.
-$search=trim((string)($_GET['q']??''));
+$search=requestText($_GET,'q');
 if ($ready) {
     $sql='SELECT r.recommendation_id,r.result_text,r.created_at,u.name,u.email FROM career_recommendations r LEFT JOIN users u ON u.user_id=r.user_id';
     if ($search!=='') {
@@ -69,4 +73,5 @@ function printResult(button) {
     document.body.classList.remove('printing-one');
 }
 </script>
+<script src="../assets/page-navigation.js" defer></script>
 </body></html>

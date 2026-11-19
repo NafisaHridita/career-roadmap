@@ -24,17 +24,23 @@ $exports = [
     ],
 ];
 
-$type = $_GET['type'] ?? '';
+$type = requestText($_GET, 'type');
 if (!isset($exports[$type])) { http_response_code(400); exit('Unknown export type. Use careers, recommendations or students.'); }
 $export = $exports[$type];
 $result = $conn->query($export['sql']);
 if (!$result) { http_response_code(500); exit('Could not read the data for this export.'); }
 
-// Cells starting with = + - @ could run as formulas in Excel; prefix them so they stay plain text.
+// [ashasuborna] Cells that start with = + - @ (or a tab/CR) could run as formulas in Excel.
+// Leading spaces and invisible characters are skipped first, so " =HYPERLINK(...)" is caught too.
+// Such cells get a ' prefix so the spreadsheet shows them as plain text (#24).
 function csvSafe($value): string
 {
     $value = (string)($value ?? '');
-    return ($value !== '' && strpbrk($value[0], "=+-@\t\r") !== false) ? "'" . $value : $value;
+    $trimmed = preg_replace('/^[\s\x00-\x1F\x{00A0}\x{FEFF}\x{200B}]+/u', '', $value) ?? $value;
+    $first = $trimmed === '' ? '' : $trimmed[0];
+    $risky = $first !== '' && strpbrk($first, '=+-@') !== false;
+    $startsWithControl = $value !== '' && strpbrk($value[0], "\t\r\n") !== false;
+    return ($risky || $startsWithControl) ? "'" . $value : $value;
 }
 
 logActivity($conn, 'export_csv', "Exported {$type} ({$result->num_rows} rows)");

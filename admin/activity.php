@@ -8,24 +8,24 @@ if (!ensureAdminToolTables($conn)) $error='Could not prepare the activity log. C
 
 // Unlock a login that was locked after too many wrong passwords.
 if (!$error && $_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['unlock_email'])) {
-    $email=trim((string)$_POST['unlock_email']);
+    $email=requestText($_POST,'unlock_email');
     if ($email!=='' && unlockLogin($conn,$email)>0) {
         logActivity($conn,'login_unlocked',"Admin unlocked login for {$email}");
         header('Location: activity.php?unlocked='.urlencode($email)); exit();
     }
     $error='That login was not locked.';
 }
-if (isset($_GET['unlocked'])) $message='Login unlocked for '.$_GET['unlocked'].'. They can try again now.';
+if (requestText($_GET,'unlocked')!=='') $message='Login unlocked for '.requestText($_GET,'unlocked').'. They can try again now.';
 
 // Readable names and colours for each action.
 $actions=[
     'login_success'=>['Login','ok'],'login_failed'=>['Wrong password','warn'],'login_locked'=>['Login locked','bad'],'login_blocked'=>['Blocked attempt','bad'],
-    'login_pending'=>['Pending login','warn'],'login_unlocked'=>['Unlocked','ok'],'register'=>['Registration','info'],
+    'login_unlocked'=>['Unlocked','ok'],'register'=>['Registration','info'],
     'career_added'=>['Career added','info'],'career_updated'=>['Career updated','info'],'career_deleted'=>['Career deleted','bad'],
     'recommendation_deleted'=>['Result deleted','bad'],'export_csv'=>['CSV export','info'],
 ];
-$filter=isset($actions[$_GET['action']??''])?$_GET['action']:'';
-$search=trim((string)($_GET['q']??''));
+$filter=requestText($_GET,'action'); if (!isset($actions[$filter])) $filter='';
+$search=requestText($_GET,'q');
 $where=[]; $types=''; $params=[];
 if ($filter!=='') { $where[]='action=?'; $types.='s'; $params[]=$filter; }
 if ($search!=='') { $like='%'.$search.'%'; $where[]='(user_name LIKE ? OR details LIKE ?)'; $types.='ss'; array_push($params,$like,$like); }
@@ -62,4 +62,4 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:9px 10px;
 <table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Details</th><th>IP</th></tr></thead><tbody>
 <?php if(!$rows):?><tr><td colspan="5" class="hint">No activity yet. Log in, add a career or export a file and it appears here.</td></tr><?php endif;?>
 <?php foreach($rows as $r): [$label,$cls]=$actions[$r['action']]??[$r['action'],'info'];?><tr><td class="when"><?=e($r['created_at'])?></td><td><?=e($r['user_name']?:'Guest')?></td><td><span class="tag <?=$cls?>"><?=e($label)?></span></td><td><?=e($r['details'])?></td><td class="hint"><?=e($r['ip_address'])?></td></tr><?php endforeach;?>
-</tbody></table></main></body></html>
+</tbody></table></main><script src="../assets/page-navigation.js" defer></script></body></html>

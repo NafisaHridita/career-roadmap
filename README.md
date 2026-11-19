@@ -43,11 +43,12 @@ iv. Open the **Import** tab (no need to create a database first).
 v. Choose `database.sql` and click **Import**. The file creates the `career_roadmap` database and all 13 tables. Importing it again is safe: it keeps existing data.
 vi. Or import from a terminal: `C:\xampp\mysql\bin\mysql.exe -u root < database.sql`
 vii. Copy `config/db.example.php` to `config/db.php` and set your MySQL user, password and database name.
-viii. Run the setup script once from the project folder: `C:\xampp\php\php.exe tools\setup.php`. It asks for the first admin's name, email and password, then adds sample careers and approved quiz questions (it skips anything that already exists).
+viii. Run the setup script once from the project folder: `C:\xampp\php\php.exe tools\setup.php`. It asks for the first admin's name, email and password, then adds sample careers and approved quiz questions (it skips anything that already exists). To only create or recover the admin without touching careers and questions, run `C:\xampp\php\php.exe tools\setup.php --admin-only`.
 ix. Copy `.env.example` to `.env` and choose the AI:
    - **Grok (online):** add your xAI API key as `XAI_API_KEY`. Create a key at [console.x.ai](https://console.x.ai/). Usage is billed per token.
    - **Ollama (free, offline):** install [Ollama](https://ollama.com/), run `ollama pull llama3.2`, and add `CAREER_AI_PROVIDER=ollama` to `.env`. No key is needed, but answers are slower on a laptop (the quiz result takes about 4 minutes).
-x. Run the project through localhost.
+x. Configure authenticated SMTP in `.env` (`MAIL_SMTP_HOST`, `MAIL_SMTP_PORT`, `MAIL_SMTP_SECURITY`, `MAIL_SMTP_USERNAME`, `MAIL_SMTP_PASSWORD`, and a matching `MAIL_FROM_ADDRESS`). Registration codes and password-reset links use this connection; XAMPP sendmail settings are not required.
+xi. Run the project through localhost.
 
 7. Local Project URL
 
@@ -69,10 +70,9 @@ Career and recommendation tables are created by the application when their modul
 10. How It Works
 
 **Accounts and roles**
-- A student registers on `register.php` (valid email, password of 8+ characters typed twice, email not already used). The account is saved as `pending`.
-- A pending student cannot log in yet: the login page says the account is waiting for admin approval.
-- The admin reviews new registrations under Student Approvals. Approving moves the student to the Admin Student List, and the student can now log in.
-- `login.php` checks the hashed password and the approval status, then sends each user to the student or admin dashboard by role. Every student and admin page checks the session role and redirects to the login page if it does not match.
+- A student enters an email and password on `register.php`; no name is required. A 6-digit code is emailed and must be entered within 10 minutes to finish registration. The display name starts from the email prefix and can be edited in the profile.
+- Verified students can log in right away. Admin Student Approvals is only the admin's personal list workflow: saving a registration adds it to the Admin Student List and does not approve or block login.
+- `login.php` checks the hashed password (with a lockout after 5 wrong passwords in 15 minutes) and sends each user to the student or admin dashboard by role. Every student and admin page checks the session role and redirects to the login page if it does not match.
 
 **Student journey**
 1. **Career Interest Quiz** (`student/quiz.php`) shows the admin-approved questions one step at a time and keeps the answers in the session.
@@ -108,16 +108,18 @@ Team: **Hridita**, **Joynab** and **Suborna**. This section lists Suborna's part
 
 Step-by-step test and demo for every feature below, with code line references: **`DEMO_GUIDE.md` → Part F**.
 
-In the code, each of these changes is marked with a comment that starts with `[ashasuborna]` and ends with the feature number, for example `// [ashasuborna] Login lockout check (#6)`. In VS Code press `Ctrl+Shift+F` and search `[ashasuborna]` to list all of them (57 places in 21 files).
+In the code, each of these changes is marked with a comment that starts with `[ashasuborna]` and ends with the feature number, for example `// [ashasuborna] Login lockout check (#6)`. In VS Code press `Ctrl+Shift+F` and search `[ashasuborna]` to list all of them (61 places in 22 files).
 
-Commits: `b5cfd8b` (careers + AI catalog), `9a0d0b3` (AI fixes, Skill Gap, setup, security), `f7839e7` (demo guide), `2cdffda` (approval login, registration checks, career and recommendation tools), `c544281` (reports, lockout, activity log, CSV export).
+Commits: `b5cfd8b` (careers + AI catalog), `9a0d0b3` (AI fixes, Skill Gap, setup, security), `f7839e7` (demo guide), `2cdffda` (registration checks, career and recommendation tools), `c544281` (reports, lockout, activity log, CSV export), plus the review fixes merged with Hridita's email-verification update.
+
+Note: `register.php` was later rebuilt by Hridita with email verification (email + password + 6-digit code, no name). My earlier register-page checks were replaced by that flow, and the approval-before-login rule was removed after review, because the team rule is that verified students can log in right away. Features 1, 2, 4 and 5 below describe what is in the code now.
 
 *Accounts*
-1. Registration checks on the server: required fields, name up to 100 characters, valid email, password 8+ characters (`register.php`)
-2. Confirm password field and a clear "email already exists" message (`register.php`)
-3. Password strength meter (Too short → Strong) and live "✓ Passwords match" (`register.php`)
-4. New students saved as `pending`; login page explains that an admin must approve (`register.php`, `login.php`)
-5. Admin approval required before a student can log in (`login.php`)
+1. Every verified registration is written to the Activity Log and gets a registration date (`users.created_at`) for Reports (`register.php`)
+2. Safe request values: a value sent as a list (for example `?q[]=x`) no longer causes PHP warnings or a fatal error on Login, Careers, AI Recommendations, Activity Log and CSV export (`requestText()` in `includes/admin_tools.php`)
+3. Password strength meter (Too short → Weak → Fair → Good → Strong) on the registration form (`register.php`)
+4. Database errors handled: PHP 8.1+ mysqli throws exceptions, so setup, career save, recommendation delete, the activity log and the login lockout catch them and show a clear message instead of a fatal error
+5. Login follows the team rule: verified students log in right away; `account_status` only controls the admin Student List (`login.php`)
 6. Login lockout: "N attempt(s) left", then locked for 15 minutes after 5 wrong passwords (`login.php`, `includes/admin_tools.php`)
 7. One "Incorrect email or password" message for both cases, so emails are not revealed (`login.php`)
 8. New session ID after login (session fixation protection) and email stored in the session (`login.php`)
@@ -145,7 +147,7 @@ Commits: `b5cfd8b` (careers + AI catalog), `9a0d0b3` (AI fixes, Skill Gap, setup
 
 22. Reports & Analytics (`admin/reports.php`): 8 key numbers, 7 charts, period 7/14/30 days, print, students CSV
 23. Activity Log (`admin/activity.php`): logins, wrong passwords, lockouts, registrations, career changes, deleted results and exports; filter, search, locked-logins list and **Unlock**
-24. CSV export page (`admin/export.php`): careers, AI results, students; UTF-8 for Excel and formula-injection safe
+24. CSV export page (`admin/export.php`): careers, AI results, students; UTF-8 for Excel and formula-injection safe (cells starting with `=`, `+`, `-` or `@`, even after leading spaces, are kept as plain text)
 25. Admin tools menu on Careers, AI Recommendations, Reports and Activity log; all four pages are admin-only
 
 *Student features*
@@ -186,7 +188,7 @@ Commits: `b5cfd8b` (careers + AI catalog), `9a0d0b3` (AI fixes, Skill Gap, setup
 | File | Feature area |
 |---|---|
 | `register.php` | Student registration |
-| `login.php` | Login and approval check |
+| `login.php` | Login lockout and safe login form |
 | `admin/careers.php` | Career Management |
 | `admin/recommendations.php` | AI Recommendations review |
 | `database.sql` | Database schema |
@@ -206,15 +208,15 @@ Commits: `b5cfd8b` (careers + AI catalog), `9a0d0b3` (AI fixes, Skill Gap, setup
 
 **11.2 What I implemented**
 
-*Registration (`register.php`)*
-- Server-side checks, so the rules hold even if the browser form is bypassed: all fields required, name up to 100 characters (matches the `users.name` column), valid email, password of at least 8 characters.
-- **Confirm password** field; the two passwords must match.
-- Clear message when the email is already registered, checked before saving.
-- New students are saved as `pending` and sent to the login page with "Registration received! An admin must approve your account before you can log in."
+*Registration (`register.php`, on top of Hridita's email-verification flow)*
+- **Password strength meter** under the password field.
+- Each verified registration is written to the **Activity Log**, and `users.created_at` records the date for the Reports chart.
 
 *Login (`login.php`)*
-- **Approval check:** a pending student cannot log in and sees "Your account is waiting for admin approval." After the admin approves the account in Student Approvals, the same login works.
+- **Login lockout:** 5 wrong passwords in 15 minutes lock the login; each try shows the attempts left. An admin can unlock it from the Activity Log.
+- Verified students log in right away (team rule); `account_status` only controls the admin Student List.
 - One message, "Incorrect email or password.", for a wrong email or a wrong password, so the page does not reveal which emails are registered.
+- Form values are read safely, so a value sent as a list cannot cause warnings or a crash.
 - A new session ID after login (`session_regenerate_id`) to prevent session fixation. The user's email is also stored in the session.
 - Removed a blank line before `<?php` in both files; it sent output before the redirect headers.
 
@@ -240,34 +242,34 @@ Commits: `b5cfd8b` (careers + AI catalog), `9a0d0b3` (AI fixes, Skill Gap, setup
 - Tested: a fresh import creates the same 13 tables and columns as the running database.
 
 *Demo guide (`DEMO_GUIDE.md`)*
-- Setup with free Ollama or Grok, the approval flow, a demo script for my part and a test checklist.
+- Setup with free Ollama or Grok, email setup, a demo script for my part and a test checklist.
 
 **11.2b Extra features you can see in the UI**
 
 | Feature | Where | What it shows |
 |---|---|---|
-| **Reports & Analytics dashboard** | Admin → Reports (`admin/reports.php`) | 8 key numbers (approved/pending students, careers, quiz results, quiz rate, logins, failed logins, admins) and 7 charts: daily registrations, daily quiz results, most recommended careers, approved vs pending donut, careers by category, job demand, most needed skills. Period: 7, 14 or 30 days. **Print report** button. |
+| **Reports & Analytics dashboard** | Admin → Reports (`admin/reports.php`) | 8 key numbers (students in the admin list / new students, careers, quiz results, quiz rate, logins, failed logins, admins) and 7 charts: daily registrations, daily quiz results, most recommended careers, admin list vs new students donut, careers by category, job demand, most needed skills. Period: 7, 14 or 30 days. **Print report** button. |
 | **Login lockout (brute-force protection)** | `login.php` | After each wrong password: "N attempt(s) left". After 5 wrong passwords in 15 minutes the login is locked for 15 minutes (🔒 message), even with the right password. |
 | **Activity Log** | Admin → Activity log (`admin/activity.php`) | Every login, wrong password, lockout, registration, career change, deleted result and export, with time, user and IP. Filter by action, search, and an **Unlock** button for locked logins. |
 | **CSV export (Excel)** | ⬇ Export CSV buttons on Careers, AI Recommendations and Reports | Downloads careers, AI results or students as a CSV that opens in Excel (UTF-8, formula-safe). |
 | **Career category and job demand** | Career Management | Category (Technology, Healthcare, …) and demand (High/Medium/Low) on each career, shown as coloured badges, with filters. Used by the Reports charts. |
-| **Password strength meter** | `register.php` | Colour bar (Too short → Weak → Fair → Good → Strong) and a live "✓ Passwords match" check. |
+| **Password strength meter** | `register.php` | Colour bar under the password field (Too short → Weak → Fair → Good → Strong). |
 | **Print one AI result** | AI Recommendations → 🖨 Print | Prints only that student's result. |
 | **Admin tools menu** | Top of Careers, AI Recommendations, Reports, Activity log | One click between the four pages. |
 
-Security points to mention: passwords hashed (`password_hash`), prepared statements everywhere (no SQL injection), all output escaped (no XSS), new session ID on login, approval before login, brute-force lockout, admin-only pages, CSV formula-injection protection.
+Security points to mention: passwords hashed (`password_hash`), prepared statements everywhere (no SQL injection), all output escaped (no XSS), new session ID on login, brute-force lockout, admin-only pages, CSV formula-injection protection.
 
 **11.3 How to check my work (about 10 minutes)**
 1. Start the app (see `DEMO_GUIDE.md`, Part B) and open http://127.0.0.1:8080.
-2. **Register:** click Register and try a wrong email, a 5-character password and two different passwords. Each shows its own message. Then register correctly: you land on the login page with the "admin must approve" message.
-3. **Pending login:** log in with the new account. You see "Your account is waiting for admin approval."
-4. **Approve:** log in as admin → Student Approvals → **Save & approve**. Log out.
-5. **Approved login:** log in as the student. The Student Dashboard opens.
-6. **Wrong password:** log out and try a wrong password. You see "Incorrect email or password."
+2. **Register:** click Register, enter an email you can open and a password, then enter the 6-digit code from the email. Watch the password strength bar while typing. You land on the login page with "Registration successful! You can log in now."
+3. **Login:** log in with the new account. The Student Dashboard opens right away (no approval needed).
+4. **Student list (optional):** log in as admin → Student Approvals → **Save**. This only adds the student to the admin list.
+5. **Activity log:** as admin open Activity log; the registration and the login are listed.
+6. **Wrong password:** log out and try a wrong password. You see "Incorrect email or password. N attempt(s) left…"
 7. **Career Management** (as admin): check the totals, search `sql`, add a career with skills on separate lines, try adding it again (blocked as a duplicate), edit it, then delete it.
 8. **AI Recommendations** (as admin): check the summary, search a student name, open and close a result, and delete a test result.
 9. **Database:** in phpMyAdmin import `database.sql` again. It finishes without errors and nothing is lost.
-10. **Password strength:** on Register, type `abcdefgh` (Weak) then `Demo2026!pass` (Strong); type the confirm password and see "✓ Passwords match".
+10. **Password strength:** on Register, type a short lowercase password (Weak), then a long one with capitals, numbers and a symbol (Strong).
 11. **Lockout:** log out and enter a wrong password 5 times for one account. Each try shows the attempts left; the 5th locks the login for 15 minutes, even with the right password.
 12. **Activity log:** log in as admin → Activity log. See the wrong passwords and the lock, then click **Unlock**. The student can log in again.
 13. **Category and demand:** in Career Management, edit a career, set Category and Job demand, save; then filter by category or "High" demand.

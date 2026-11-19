@@ -74,5 +74,5 @@ if (ensureAdminProfileTable($conn)) {
         profileMenuButton.addEventListener('click',()=>{profileMenu.hidden=!profileMenu.hidden;});
         document.addEventListener('click',event=>{if(!event.target.closest('.admin-tools'))profileMenu.hidden=true;});
     </script>
-</body>
+<script src="../assets/page-navigation.js" defer></script></body>
 </html>

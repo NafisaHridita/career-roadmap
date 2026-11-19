@@ -12,5 +12,5 @@ else {
     else echo '<p class="content-box">Skills for this career have not been listed yet.</p>';
     echo '<p><a class="career-link" href="skills.php?id='.(int)$career['career_id'].'">Explore skills</a> <a class="career-link" href="roadmap.php?id='.(int)$career['career_id'].'">Build a learning roadmap</a></p>';
 }
-echo '</main></body></html>';
+echo '</main><script src="../assets/page-navigation.js" defer></script></body></html>';
 ?>
