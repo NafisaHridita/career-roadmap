@@ -11,6 +11,7 @@ elseif($id){
         $skills=careerPageSkills($career['required_skills']??'');
         if(!$skills) echo '<p class="content-box">No skills listed for this career yet.</p>';
         else {
+            // [ashasuborna] Skill Gap Checker: match percentage, progress bar, missing skills (#26)
             // Skill gap checker: the student ticks the skills they already have.
             $checked=$_SERVER['REQUEST_METHOD']==='POST';
             $have=$checked?array_values(array_intersect($skills,array_map('strval',(array)($_POST['have']??[])))):[];
@@ -21,6 +22,7 @@ elseif($id){
                 if($missing){
                     echo '<p>Skills to build next:</p>';
                     foreach($missing as $skill) echo '<span class="skill-pill gap-pill">'.careerPageEscape($skill).'</span>';
+                    // [ashasuborna] Send the missing skills to the roadmap page (#27)
                     echo '<form method="post" action="roadmap.php?id='.(int)$career['career_id'].'">';
                     foreach($missing as $skill) echo '<input type="hidden" name="focus[]" value="'.careerPageEscape($skill).'">';
                     echo '<p><button type="submit">Build a roadmap for my missing skills</button></p></form>';

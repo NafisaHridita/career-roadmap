@@ -7,6 +7,7 @@ function ensureUserApprovalColumn(mysqli $conn): bool
     return (bool) $conn->query("ALTER TABLE users ADD COLUMN account_status ENUM('pending','approved') NOT NULL DEFAULT 'approved'");
 }
 
+// [ashasuborna] Adds missing career columns on older databases (#39)
 function ensureCareerColumn(mysqli $conn, string $column, string $definition): bool
 {
     $existing = $conn->query("SHOW COLUMNS FROM careers LIKE '" . $conn->real_escape_string($column) . "'");
@@ -31,6 +32,7 @@ function ensureCareerTables(mysqli $conn): bool
     return true;
 }
 
+// [ashasuborna] Saves each required skill as its own row (#10)
 function syncCareerSkillRows(mysqli $conn, int $careerId, string $skillsText): bool
 {
     $table = $conn->query("SHOW TABLES LIKE 'career_skills'");

@@ -1,7 +1,17 @@
--- Career Roadmap schema. Foreign key checks are paused so tables can be created in any order.
+-- Career Roadmap schema.
+-- Import in phpMyAdmin (Import tab) or run: C:\xampp\mysql\bin\mysql.exe -u root < database.sql
+-- It creates the career_roadmap database if needed. Every table uses IF NOT EXISTS,
+-- so importing again is safe and keeps existing data.
+-- After importing, run tools\setup.php once to create the first admin and sample data.
+-- [ashasuborna] Creates the database; safe to import again (#37)
+CREATE DATABASE IF NOT EXISTS `career_roadmap` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE `career_roadmap`;
+
+-- Foreign key checks are paused so tables can be created in any order.
+-- [ashasuborna] Foreign key checks paused so a new database imports cleanly (#37)
 SET FOREIGN_KEY_CHECKS = 0;
 
-CREATE TABLE `admin_profile_social_links` (
+CREATE TABLE IF NOT EXISTS `admin_profile_social_links` (
   `link_id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
   `app_name` varchar(80) NOT NULL,
@@ -12,7 +22,7 @@ CREATE TABLE `admin_profile_social_links` (
   KEY `user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE `admin_profiles` (
+CREATE TABLE IF NOT EXISTS `admin_profiles` (
   `user_id` int(11) NOT NULL,
   `phone` varchar(40) DEFAULT NULL,
   `website` varchar(255) DEFAULT NULL,
@@ -24,7 +34,7 @@ CREATE TABLE `admin_profiles` (
   PRIMARY KEY (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE `ai_recommendations` (
+CREATE TABLE IF NOT EXISTS `ai_recommendations` (
   `recommendation_id` int(11) NOT NULL AUTO_INCREMENT,
   `assessment_id` int(11) DEFAULT NULL,
   `career_id` int(11) DEFAULT NULL,
@@ -39,7 +49,7 @@ CREATE TABLE `ai_recommendations` (
   CONSTRAINT `ai_recommendations_ibfk_2` FOREIGN KEY (`career_id`) REFERENCES `careers` (`career_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE `assessment_answers` (
+CREATE TABLE IF NOT EXISTS `assessment_answers` (
   `answer_id` int(11) NOT NULL AUTO_INCREMENT,
   `assessment_id` int(11) DEFAULT NULL,
   `question_id` int(11) DEFAULT NULL,
@@ -53,7 +63,7 @@ CREATE TABLE `assessment_answers` (
   CONSTRAINT `assessment_answers_ibfk_3` FOREIGN KEY (`option_id`) REFERENCES `options` (`option_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE `assessments` (
+CREATE TABLE IF NOT EXISTS `assessments` (
   `assessment_id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) DEFAULT NULL,
   `assessment_date` datetime DEFAULT current_timestamp(),
@@ -63,7 +73,7 @@ CREATE TABLE `assessments` (
   CONSTRAINT `assessments_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE `career_recommendations` (
+CREATE TABLE IF NOT EXISTS `career_recommendations` (
   `recommendation_id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
   `result_text` mediumtext NOT NULL,
@@ -71,9 +81,9 @@ CREATE TABLE `career_recommendations` (
   PRIMARY KEY (`recommendation_id`),
   KEY `user_id` (`user_id`),
   KEY `created_at` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE `career_skills` (
+CREATE TABLE IF NOT EXISTS `career_skills` (
   `career_skill_id` int(11) NOT NULL AUTO_INCREMENT,
   `career_id` int(11) DEFAULT NULL,
   `skill_name` varchar(150) DEFAULT NULL,
@@ -83,16 +93,19 @@ CREATE TABLE `career_skills` (
   CONSTRAINT `career_skills_ibfk_1` FOREIGN KEY (`career_id`) REFERENCES `careers` (`career_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE `careers` (
+-- [ashasuborna] required_skills, created_at, category, demand_level columns (#38)
+CREATE TABLE IF NOT EXISTS `careers` (
   `career_id` int(11) NOT NULL AUTO_INCREMENT,
   `career_name` varchar(150) NOT NULL,
   `description` text DEFAULT NULL,
   `required_skills` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `category` varchar(60) DEFAULT NULL,
+  `demand_level` enum('High','Medium','Low') DEFAULT NULL,
   PRIMARY KEY (`career_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE `options` (
+CREATE TABLE IF NOT EXISTS `options` (
   `option_id` int(11) NOT NULL AUTO_INCREMENT,
   `option_label` varchar(50) DEFAULT NULL,
   `question_id` int(11) DEFAULT NULL,
@@ -102,29 +115,58 @@ CREATE TABLE `options` (
   PRIMARY KEY (`option_id`),
   KEY `question_id` (`question_id`),
   CONSTRAINT `options_ibfk_1` FOREIGN KEY (`question_id`) REFERENCES `questions` (`question_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE `questions` (
+CREATE TABLE IF NOT EXISTS `questions` (
   `question_id` int(11) NOT NULL AUTO_INCREMENT,
   `question_text` text NOT NULL,
   `category` varchar(100) DEFAULT NULL,
   `status` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
   PRIMARY KEY (`question_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE `users` (
+-- [ashasuborna] account_status marks the admin Student List (not login); created_at for Reports (#5, #38)
+CREATE TABLE IF NOT EXISTS `users` (
   `user_id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL,
   `email` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
   `role` varchar(20) DEFAULT 'student',
   `account_status` enum('pending','approved') NOT NULL DEFAULT 'approved',
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- [ashasuborna] Login lockout table (#6, #38)
+-- Failed and successful logins, used to lock a login for 15 minutes after 5 wrong passwords.
+CREATE TABLE IF NOT EXISTS `login_attempts` (
+  `attempt_id` int(11) NOT NULL AUTO_INCREMENT,
+  `email` varchar(150) NOT NULL,
+  `ip_address` varchar(45) NOT NULL,
+  `success` tinyint(1) NOT NULL DEFAULT 0,
+  `attempted_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`attempt_id`),
+  KEY `email` (`email`,`attempted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- [ashasuborna] Activity Log table (#23, #38)
+-- Admin Activity Log: logins, lockouts, registrations, career changes and exports.
+CREATE TABLE IF NOT EXISTS `activity_log` (
+  `log_id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) DEFAULT NULL,
+  `user_name` varchar(100) DEFAULT NULL,
+  `action` varchar(60) NOT NULL,
+  `details` varchar(255) DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`log_id`),
+  KEY `created_at` (`created_at`),
+  KEY `action` (`action`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 
-CREATE TABLE `password_reset_tokens` (
+CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
   `reset_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
   `token_hash` char(64) NOT NULL,

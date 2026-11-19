@@ -4,6 +4,7 @@
 // It creates the first admin account (registration only creates students) and adds
 // sample careers and approved quiz questions when those tables are empty.
 // Running it again is safe: it skips anything that already exists.
+// [ashasuborna] First-time setup: admin, sample careers and questions; safe to rerun (#40)
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit(); }
 $adminOnly = in_array('--admin-only', $argv ?? [], true);
 
@@ -33,21 +34,29 @@ if ($admins > 0) {
     $hash = password_hash($password, PASSWORD_DEFAULT);
     // A deleted admin may still have a student row with the same unique email.
     // Promote that existing account so its user_id and related records survive.
-    $find = $conn->prepare('SELECT user_id FROM users WHERE email = ? LIMIT 1');
-    $find->bind_param('s', $email);
-    if (!$find->execute()) { fwrite(STDERR, "Could not check the email address.\n"); exit(1); }
-    $existing = $find->get_result()->fetch_assoc();
-    if ($existing) {
-        $userId = (int) $existing['user_id'];
-        $stmt = $conn->prepare("UPDATE users SET name = ?, password = ?, role = 'admin', account_status = 'approved' WHERE user_id = ?");
-        $stmt->bind_param('ssi', $name, $hash, $userId);
-        if (!$stmt->execute()) { fwrite(STDERR, "Could not restore the existing account as admin.\n"); exit(1); }
-        echo "Existing account promoted to admin for {$email}; its user ID and related records were preserved.\n";
-    } else {
-        $stmt = $conn->prepare("INSERT INTO users (name, email, password, role, account_status) VALUES (?, ?, ?, 'admin', 'approved')");
-        $stmt->bind_param('sss', $name, $email, $hash);
-        if (!$stmt->execute()) { fwrite(STDERR, "Could not create admin account. Check the database and try again.\n"); exit(1); }
-        echo "Admin account created for {$email}.\n";
+    // [ashasuborna] PHP 8.1+ mysqli throws exceptions on errors (for example a duplicate email),
+    // so catch them and print a clear message instead of a fatal error.
+    try {
+        $find = $conn->prepare('SELECT user_id FROM users WHERE email = ? LIMIT 1');
+        $find->bind_param('s', $email);
+        if (!$find->execute()) { fwrite(STDERR, "Could not check the email address.\n"); exit(1); }
+        $existing = $find->get_result()->fetch_assoc();
+        if ($existing) {
+            $userId = (int) $existing['user_id'];
+            $stmt = $conn->prepare("UPDATE users SET name = ?, password = ?, role = 'admin', account_status = 'approved' WHERE user_id = ?");
+            $stmt->bind_param('ssi', $name, $hash, $userId);
+            if (!$stmt->execute()) { fwrite(STDERR, "Could not restore the existing account as admin.\n"); exit(1); }
+            echo "Existing account promoted to admin for {$email}; its user ID and related records were preserved.\n";
+        } else {
+            $stmt = $conn->prepare("INSERT INTO users (name, email, password, role, account_status) VALUES (?, ?, ?, 'admin', 'approved')");
+            $stmt->bind_param('sss', $name, $email, $hash);
+            if (!$stmt->execute()) { fwrite(STDERR, "Could not create admin account. Check the database and try again.\n"); exit(1); }
+            echo "Admin account created for {$email}.\n";
+        }
+    } catch (mysqli_sql_exception $e) {
+        $reason = (int)$e->getCode() === 1062 ? 'That email is already used by another account.' : 'Check that MySQL is running and the database was imported.';
+        fwrite(STDERR, "Could not create the admin account. {$reason} Nothing was changed.\n");
+        exit(1);
     }
 }
 
@@ -81,6 +90,31 @@ if ($careerCount > 0) {
         syncCareerSkillRows($conn, (int) $stmt->insert_id, $skills);
     }
     echo 'Added ' . count($careers) . " sample careers.\n";
+}
+
+// [ashasuborna] Category and demand for the sample careers (#40)
+// 2b. Category and job demand for the sample careers (Career Management filters and Reports).
+// Only fills careers that have no category yet, so admin edits are never overwritten.
+require_once __DIR__ . '/../includes/admin_tools.php';
+if (ensureAdminToolTables($conn)) {
+    $sampleCategories = [
+        'Software Developer' => ['Technology', 'High'],
+        'Data Analyst' => ['Data & Analytics', 'High'],
+        'UI/UX Designer' => ['Design & Creative', 'Medium'],
+        'Cybersecurity Analyst' => ['Technology', 'High'],
+        'Digital Marketer' => ['Marketing & Media', 'Medium'],
+        'Teacher' => ['Education', 'Medium'],
+        'Graphic Designer' => ['Design & Creative', 'Low'],
+        'Project Manager' => ['Business & Management', 'Medium'],
+    ];
+    $fill = $conn->prepare("UPDATE careers SET category = ?, demand_level = ? WHERE career_name = ? AND (category IS NULL OR category = '')");
+    $filled = 0;
+    foreach ($sampleCategories as $careerName => [$category, $demand]) {
+        $fill->bind_param('sss', $category, $demand, $careerName);
+        $fill->execute();
+        $filled += $fill->affected_rows;
+    }
+    echo $filled > 0 ? "Set category and job demand for {$filled} sample careers.\n" : "Career categories already set - skipping.\n";
 }
 
 // 3. Sample approved quiz questions

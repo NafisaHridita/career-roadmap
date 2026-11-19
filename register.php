@@ -1,9 +1,11 @@
-
 <?php
 session_start();
 require_once 'config/db.php';
 require_once 'includes/module_helpers.php';
 require_once 'includes/registration_verification_helpers.php';
+// [ashasuborna] Activity log and users.created_at for Reports (#23, #38)
+require_once 'includes/admin_tools.php';
+ensureAdminToolTables($conn);
 
 if (!ensureUserApprovalColumn($conn) || !ensureRegistrationVerificationTable($conn)) {
     http_response_code(500);
@@ -75,9 +77,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt = $conn->prepare("INSERT INTO users (name,email,password,role,account_status) VALUES (?,?,?,'student','pending')");
                     $stmt->bind_param('sss', $name, $emailValue, $passwordHash);
                     $stmt->execute();
+                    $newUserId = (int)$stmt->insert_id;
                     $stmt->close();
                     $stmt = $conn->prepare('DELETE FROM registration_verifications WHERE email=?');
                     $stmt->bind_param('s', $emailValue); $stmt->execute(); $stmt->close();
+                    // [ashasuborna] Activity log entry for each verified registration (#23)
+                    logActivity($conn, 'register', "New student registered: {$emailValue}", $newUserId, $name);
                     header('Location: login.php?registered=1');
                     exit();
                 } catch (mysqli_sql_exception $exception) {
@@ -218,6 +223,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.welcome-video{display:none!important}}
 </style>
 <style>
+    .strength{margin-top:9px}.strength-bar{height:7px;border-radius:99px;background:#1c2740;overflow:hidden}.strength-bar span{display:block;height:100%;width:0;border-radius:99px;transition:width .3s,background .3s}
+    .strength small{display:block;margin-top:6px;font-size:13px;color:#a8b7d0}
+</style>
+<style>
     .auth-neon-lines path{stroke:#91adff;stroke-dasharray:6 17;animation-duration:17s;filter:drop-shadow(0 0 7px #8195ff)}
     .auth-neon-lines path:nth-child(2){stroke:#71f0c9;stroke-dasharray:3 21;animation-duration:31s;animation-direction:alternate;filter:drop-shadow(0 0 8px #5fe9c1)}
 </style>
@@ -255,6 +264,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="hidden" name="action" value="send_code">
                     <label for="email">Email address</label><input id="email" type="email" name="email" autocomplete="email" maxlength="150" required value="<?= registrationEscape($emailValue) ?>" placeholder="you@example.com">
                     <label for="password">Password</label><div class="password-wrap"><input id="password" type="password" name="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters"><button class="show-password" type="button" id="togglePassword">Show</button></div>
+                    <?php /* [ashasuborna] Password strength meter (#3) */ ?>
+                    <div class="strength" aria-live="polite"><div class="strength-bar"><span id="strengthFill"></span></div><small id="strengthText">Password strength: type a password</small></div>
                     <button class="submit" type="submit">Send verification code</button>
                 </form>
             <?php endif; ?>
@@ -262,5 +273,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </section>
     </main>
     <script>const togglePassword=document.getElementById('togglePassword');if(togglePassword)togglePassword.addEventListener('click',function(){const input=document.getElementById('password'),showing=input.type==='password';input.type=showing?'text':'password';this.textContent=showing?'Hide':'Show';});</script>
+    <?php /* [ashasuborna] Password strength meter: scores length, upper/lower case, numbers and symbols (#3) */ ?>
+    <script>
+    (function () {
+        const pass = document.getElementById('password'), fill = document.getElementById('strengthFill'), text = document.getElementById('strengthText');
+        if (!pass || !fill || !text) return;
+        const levels = [
+            {label: 'Too short', color: '#ff6b81', width: 15},
+            {label: 'Weak', color: '#ff8e5e', width: 35},
+            {label: 'Fair', color: '#ffd166', width: 60},
+            {label: 'Good', color: '#7ee0a1', width: 80},
+            {label: 'Strong', color: '#48d6a8', width: 100}
+        ];
+        function score(p) {
+            if (p.length < 8) return 0;
+            let s = 1;
+            if (p.length >= 12) s++;
+            if (/[a-z]/.test(p) && /[A-Z]/.test(p)) s++;
+            if (/\d/.test(p)) s++;
+            if (/[^A-Za-z0-9]/.test(p)) s++;
+            return Math.min(4, s);
+        }
+        pass.addEventListener('input', function () {
+            const p = pass.value;
+            if (!p) { fill.style.width = '0'; text.textContent = 'Password strength: type a password'; return; }
+            const s = score(p), level = levels[s];
+            fill.style.width = level.width + '%'; fill.style.background = level.color;
+            text.textContent = 'Password strength: ' + level.label + (s < 3 ? ' (add capitals, numbers or symbols)' : '');
+        });
+    })();
+    </script>
 <script src="assets/page-navigation.js" defer></script></body>
 </html>

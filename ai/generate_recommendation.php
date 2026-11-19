@@ -58,6 +58,7 @@ function careerAiRecommendationSchema(): array
 
 function careerAiRecommendationPrompt(string $answerText, array $careers = []): string
 {
+    // [ashasuborna] Career catalog from Career Management in the prompt (#30)
     $catalog = '';
     if ($careers) {
         $catalog = "CAREER CATALOG (prefer relevant careers from this list; do not force a poor fit):\n";

@@ -1,57 +1,82 @@
-
 <?php
 session_start();
 include 'config/db.php';
+require_once 'includes/module_helpers.php';
+// [ashasuborna] Login lockout and activity log helpers (#6, #23)
+require_once 'includes/admin_tools.php';
+// Older databases may not have the account_status column yet (used by the admin Student List).
+ensureUserApprovalColumn($conn);
+// Login attempts and activity log tables (for the lockout below).
+ensureAdminToolTables($conn);
 
 $message = "";
+$messageType = "error";
 
+// Messages shown after redirects from other pages.
 if (isset($_GET['registered'])) {
     $message = "Registration successful! You can log in now.";
+    $messageType = "success";
 }
 if (isset($_GET['account_deleted'])) {
     $message = "Your account and associated quiz data have been deleted.";
+    $messageType = "success";
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
+    $email = requestText($_POST, 'email');
+    $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
 
-    $stmt = $conn->prepare(
-        "SELECT user_id, name, email, password, role
-         FROM users WHERE email = ?"
-    );
+    if ($email === '' || $password === '') {
+        $message = "Enter your email and password.";
+        $messageType = "error";
+    } elseif (($lock = loginLockStatus($conn, $email))['locked']) {
+        // [ashasuborna] Login lockout: blocked while locked, even with the right password (#6)
+        // Brute-force protection: too many wrong passwords in a short time.
+        $message = "Too many failed attempts. For your security, login is locked for {$lock['minutes']} more minute(s). Try again later or ask an admin to unlock it.";
+        $messageType = "locked";
+        logActivity($conn, 'login_blocked', "Locked login attempt for {$email}", null, null);
+    } else {
+        $stmt = $conn->prepare(
+            "SELECT user_id, name, email, password, role, account_status
+             FROM users WHERE email = ?"
+        );
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $user = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
 
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-
-    $result = $stmt->get_result();
-
-    if ($result->num_rows == 1) {
-        $user = $result->fetch_assoc();
-
-        if (password_verify($password, $user['password'])) {
-
+        // [ashasuborna] Same message for wrong email or password, attempts left, lock after 5 (#6, #7)
+        // One message for a wrong email or a wrong password, so the form does not reveal which emails are registered.
+        if (!$user || !password_verify($password, $user['password'])) {
+            recordLoginAttempt($conn, $email, false);
+            $lock = loginLockStatus($conn, $email);
+            if ($lock['locked']) {
+                $message = "Too many failed attempts. For your security, login is locked for " . LOGIN_LOCK_MINUTES . " minutes.";
+                $messageType = "locked";
+                logActivity($conn, 'login_locked', "Login locked after " . LOGIN_MAX_FAILURES . " failed attempts for {$email}", null, null);
+            } else {
+                $message = "Incorrect email or password. {$lock['remaining']} attempt(s) left before a " . LOGIN_LOCK_MINUTES . "-minute lock.";
+                $messageType = "error";
+                logActivity($conn, 'login_failed', "Wrong email or password for {$email}", null, null);
+            }
+        } else {
+            // Team rule: verified students can log in right away. account_status only controls
+            // the admin's Student List (Student Approvals), never login.
+            recordLoginAttempt($conn, $email, true);
+            // [ashasuborna] New session ID and email in session (#8)
+            // New session ID after login protects against session fixation.
+            session_regenerate_id(true);
             $_SESSION['user_id'] = $user['user_id'];
             $_SESSION['name'] = $user['name'];
+            $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'];
+            logActivity($conn, 'login_success', ucfirst($user['role']) . " logged in", (int)$user['user_id'], $user['name']);
 
-            if ($user['role'] == 'admin') {
-                header("Location: admin/dashboard.php");
-            } else {
-                header("Location: student/dashboard.php");
-            }
+            header("Location: " . ($user['role'] === 'admin' ? "admin/dashboard.php" : "student/dashboard.php"));
             exit();
-
-        } else {
-            $message = "Incorrect password!";
         }
-
-    } else {
-        $message = "Account not found!";
     }
-
-    $stmt->close();
 }
 ?>
 
@@ -108,6 +133,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     @media(max-width:760px){.welcome-art{width:75%;right:-15%;bottom:-3%;opacity:.27}.welcome-copy{margin:30px 0 20px}}
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.welcome-video{display:none!important}}
 </style>
+<style>
+    .form-side .alert.locked{color:#ffd0d8;background:#3a1420;border-color:#a33a57;font-weight:600}
+    .form-side .alert.locked:before{content:"🔒 "}
+</style>
 </head>
 <body>
     <main class="shell">
@@ -125,11 +154,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <h2>Welcome back</h2>
             <p class="subtitle">Log in to continue your CareerRoadmap journey.</p>
             <?php if ($message): ?>
-                <p class="alert <?= isset($_GET['registered']) ? 'success' : '' ?>" role="status"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></p>
+                <p class="alert <?= htmlspecialchars($messageType, ENT_QUOTES, 'UTF-8') ?>" role="status"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></p>
             <?php endif; ?>
             <form method="post">
                 <label for="email">Email address</label>
-                <input id="email" type="email" name="email" autocomplete="username" required value="<?= htmlspecialchars($_POST['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="you@example.com">
+                <input id="email" type="email" name="email" autocomplete="username" required value="<?= htmlspecialchars(requestText($_POST, 'email'), ENT_QUOTES, 'UTF-8') ?>" placeholder="you@example.com">
                 <label for="password">Password</label>
                 <div class="password-wrap"><input id="password" type="password" name="password" autocomplete="current-password" required placeholder="Enter your password"><button class="show-password" type="button" id="togglePassword">Show</button></div>
                 <button class="submit" type="submit">Log in</button>
