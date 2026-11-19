@@ -16,7 +16,7 @@ Follow these steps in order. Part A is a one-time setup, Part B starts the app, 
    ```
 
    Type your admin name, email and a password of 8 or more characters. It then adds 8 sample careers (with 48 skills) and 8 approved quiz questions. Write down the admin email and password.
-5. **Configure Grok:** copy `.env.example` to `.env` and set `XAI_API_KEY` to an API key from [console.x.ai](https://console.x.ai/). Do not share or commit the key. Grok API usage is billed by token, so check xAI billing and set a spending limit before the demo.
+5. **Configure email and Grok:** copy `.env.example` to `.env` and enter SMTP server, username, password, and sender address. Registration verification codes and password-reset links use authenticated SMTP; XAMPP sendmail settings are not required. Gmail senders need a Google App Password. Outlook.com recipients are fine, but Outlook.com SMTP senders require OAuth2. For AI, set `XAI_API_KEY` from [console.x.ai](https://console.x.ai/). Do not share or commit secrets.
 
 ---
 
@@ -55,9 +55,10 @@ Follow these steps in order. Part A is a one-time setup, Part B starts the app, 
 4. Click **Logout**.
 
 ### 3. Student registration (2 min)
-1. Click **Register** and create a student account (any name, email and password).
-2. Log in as that student. You land on the **Student Dashboard**.
-3. Optional: log back in as admin and open **Student Approvals** to show the new registration, then click **Save & approve**.
+1. Click **Register** and enter an email address and password; no name is requested.
+2. Enter the 6-digit code sent to that email. Registration completes and the display name is generated from the email prefix.
+3. Log in as that student. The Student Dashboard opens without admin approval.
+4. Optional: open admin **Student Approvals** and click **Save** to add the student to the admin's personal list. This does not control the student's ability to log in.
 
 ### 4. Skill Gap Checker (3 min), a feature you built
 1. In the student dashboard, click **Career Explorer → Explore careers**.

@@ -1,37 +1,157 @@
 
 <?php
-include 'config/db.php';
+session_start();
+require_once 'config/db.php';
 require_once 'includes/module_helpers.php';
-if (!ensureUserApprovalColumn($conn)) die('Could not prepare student approval status. Check database permissions.');
+require_once 'includes/registration_verification_helpers.php';
 
-$message = "";
+if (!ensureUserApprovalColumn($conn) || !ensureRegistrationVerificationTable($conn)) {
+    http_response_code(500);
+    die('Registration is temporarily unavailable. Check the database setup and try again.');
+}
+$conn->query('DELETE FROM registration_verifications WHERE expires_at < NOW()');
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
+if (empty($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+$message = '';
+$messageType = 'error';
+$step = 'details';
+$emailValue = '';
 
-    $name = trim($_POST['name']);
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
+function registrationEscape($value): string
+{
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+}
 
-    if (empty($name) || empty($email) || empty($password)) {
-        $message = "All fields are required!";
-    } else {
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+function registrationDisplayName(string $email): string
+{
+    $localPart = (string)strstr($email, '@', true);
+    $name = preg_replace('/[._+\-]+/', ' ', $localPart) ?? '';
+    $name = trim(preg_replace('/\s+/', ' ', $name) ?? '');
+    return mb_substr($name !== '' ? mb_convert_case($name, MB_CASE_TITLE, 'UTF-8') : 'Student', 0, 100);
+}
 
-        $stmt = $conn->prepare(
-            "INSERT INTO users (name, email, password, role, account_status)
-             VALUES (?, ?, ?, 'student', 'pending')"
-        );
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $emailValue = strtolower(trim((string)($_POST['email'] ?? '')));
+    $action = (string)($_POST['action'] ?? 'send_code');
+    $postedToken = (string)($_POST['csrf_token'] ?? '');
 
-        $stmt->bind_param("sss", $name, $email, $hashed_password);
-
-        if ($stmt->execute()) {
-            header("Location: login.php?registered=pending");
-            exit();
+    if (!hash_equals($_SESSION['csrf_token'], $postedToken)) {
+        $message = 'Your session expired. Refresh the page and try again.';
+    } elseif (!filter_var($emailValue, FILTER_VALIDATE_EMAIL) || strlen($emailValue) > 150) {
+        $message = 'Enter a valid email address.';
+    } elseif ($action === 'verify_code') {
+        $step = 'verify';
+        $code = trim((string)($_POST['verification_code'] ?? ''));
+        if (!preg_match('/^\d{6}$/', $code)) {
+            $message = 'Enter the 6-digit code from your email.';
         } else {
-            $message = "Email already exists or registration failed!";
-        }
+            $stmt = $conn->prepare('SELECT verification_id,password_hash,code_hash,(expires_at > NOW()) AS is_valid,attempts FROM registration_verifications WHERE email=? LIMIT 1');
+            $stmt->bind_param('s', $emailValue);
+            $stmt->execute();
+            $verification = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
 
-        $stmt->close();
+            if (!$verification) {
+                $message = 'No active verification code was found. Request a new code.';
+                $step = 'details';
+            } elseif (!(int)$verification['is_valid']) {
+                $stmt = $conn->prepare('DELETE FROM registration_verifications WHERE email=?');
+                $stmt->bind_param('s', $emailValue); $stmt->execute(); $stmt->close();
+                $message = 'That code expired. Enter your details to request a new one.';
+                $step = 'details';
+            } elseif ((int)$verification['attempts'] >= 5) {
+                $message = 'Too many incorrect codes. Wait 1 minute, then request a new code.';
+            } elseif (!password_verify($code, $verification['code_hash'])) {
+                $stmt = $conn->prepare('UPDATE registration_verifications SET attempts=attempts+1 WHERE email=?');
+                $stmt->bind_param('s', $emailValue); $stmt->execute(); $stmt->close();
+                $remaining = max(0, 4 - (int)$verification['attempts']);
+                $message = $remaining > 0 ? "That code is incorrect. {$remaining} attempt(s) remain." : 'Too many incorrect codes. Wait 1 minute, then request a new code.';
+            } else {
+                $passwordHash = (string)$verification['password_hash'];
+                $name = registrationDisplayName($emailValue);
+                try {
+                    // Email ownership is confirmed before a student row is created.
+                    // Pending here means "not yet saved to the admin list"; login remains open.
+                    $stmt = $conn->prepare("INSERT INTO users (name,email,password,role,account_status) VALUES (?,?,?,'student','pending')");
+                    $stmt->bind_param('sss', $name, $emailValue, $passwordHash);
+                    $stmt->execute();
+                    $stmt->close();
+                    $stmt = $conn->prepare('DELETE FROM registration_verifications WHERE email=?');
+                    $stmt->bind_param('s', $emailValue); $stmt->execute(); $stmt->close();
+                    header('Location: login.php?registered=1');
+                    exit();
+                } catch (mysqli_sql_exception $exception) {
+                    if ((int)$exception->getCode() === 1062) {
+                        $stmt = $conn->prepare('DELETE FROM registration_verifications WHERE email=?');
+                        $stmt->bind_param('s', $emailValue); $stmt->execute(); $stmt->close();
+                        $message = 'An account with this email already exists. Please log in instead.';
+                        $step = 'details';
+                    } else {
+                        $message = 'Registration could not be completed. Please try again.';
+                    }
+                }
+            }
+        }
+    } elseif ($action === 'resend_code') {
+        $step = 'verify';
+        $stmt = $conn->prepare('SELECT created_at,(created_at > NOW() - INTERVAL 60 SECOND) AS cooldown FROM registration_verifications WHERE email=? LIMIT 1');
+        $stmt->bind_param('s', $emailValue); $stmt->execute();
+        $previous = $stmt->get_result()->fetch_assoc(); $stmt->close();
+        if (!$previous) {
+            $step = 'details';
+            $message = 'No active verification was found. Enter your details to request a code.';
+        } elseif ((int)$previous['cooldown']) {
+            $message = 'Please wait 1 minute between verification code requests.';
+        } else {
+            $code = (string)random_int(100000, 999999);
+            $codeHash = password_hash($code, PASSWORD_DEFAULT);
+            $stmt = $conn->prepare('UPDATE registration_verifications SET code_hash=?,expires_at=DATE_ADD(NOW(),INTERVAL 10 MINUTE),attempts=0,created_at=NOW() WHERE email=?');
+            $stmt->bind_param('ss', $codeHash, $emailValue); $saved = $stmt->execute(); $stmt->close();
+            if ($saved && sendCareerRoadmapVerificationEmail($emailValue, $code, careerRoadmapEnv())) {
+                $message = 'A new verification code was sent. It expires in 10 minutes.';
+                $messageType = 'success';
+            } else {
+                $message = 'We could not send the verification email. Check the email delivery settings and try again later.';
+            }
+        }
+    } else {
+        $step = 'details';
+        $password = (string)($_POST['password'] ?? '');
+        if (strlen($password) < 8) {
+            $message = 'Password must be at least 8 characters.';
+        } else {
+            $stmt = $conn->prepare('SELECT user_id FROM users WHERE email=? LIMIT 1');
+            $stmt->bind_param('s', $emailValue); $stmt->execute();
+            $accountExists = $stmt->get_result()->num_rows > 0; $stmt->close();
+            if ($accountExists) {
+                $message = 'An account with this email already exists. Please log in instead.';
+            } else {
+                $stmt = $conn->prepare('SELECT created_at,(created_at > NOW() - INTERVAL 60 SECOND) AS cooldown FROM registration_verifications WHERE email=? LIMIT 1');
+                $stmt->bind_param('s', $emailValue); $stmt->execute();
+                $previous = $stmt->get_result()->fetch_assoc(); $stmt->close();
+                if ($previous && (int)$previous['cooldown']) {
+                    $step = 'verify';
+                    $message = 'A code was sent recently. Check your inbox or wait 1 minute before requesting another.';
+                } else {
+                    $code = (string)random_int(100000, 999999);
+                    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+                    $codeHash = password_hash($code, PASSWORD_DEFAULT);
+                    $stmt = $conn->prepare("INSERT INTO registration_verifications (email,password_hash,code_hash,expires_at,attempts,created_at) VALUES (?,?,?,DATE_ADD(NOW(),INTERVAL 10 MINUTE),0,NOW()) ON DUPLICATE KEY UPDATE password_hash=VALUES(password_hash),code_hash=VALUES(code_hash),expires_at=VALUES(expires_at),attempts=0,created_at=NOW()");
+                    $stmt->bind_param('sss', $emailValue, $passwordHash, $codeHash);
+                    $saved = $stmt->execute(); $stmt->close();
+                    $settings = careerRoadmapEnv();
+                    if ($saved && sendCareerRoadmapVerificationEmail($emailValue, $code, $settings)) {
+                        $step = 'verify';
+                        $message = 'We sent a 6-digit verification code to your email. It expires in 10 minutes.';
+                        $messageType = 'success';
+                    } else {
+                        $stmt = $conn->prepare('DELETE FROM registration_verifications WHERE email=?');
+                        $stmt->bind_param('s', $emailValue); $stmt->execute(); $stmt->close();
+                        $message = 'We could not send the verification email. Set a working authenticated SMTP sender in the project .env file, then try again.';
+                    }
+                }
+            }
+        }
     }
 }
 ?>
@@ -51,7 +171,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .welcome-copy{margin:auto 0}.eyebrow{text-transform:uppercase;letter-spacing:2px;font-size:12px;color:#e3d4fa;font-weight:700}.welcome h1{font-size:42px;line-height:1.12;margin:15px 0}.welcome-copy p{max-width:360px;color:#eee5fa;line-height:1.7}
         .note{padding:13px 15px;border-radius:12px;background:#ffffff18;border:1px solid #ffffff30;color:#fff;line-height:1.5}
         .form-side{padding:48px 60px;display:flex;flex-direction:column;justify-content:center}.form-side h2{font-size:30px;margin:0 0 8px}.subtitle{color:#777386;margin:0 0 25px;line-height:1.5}
-        .error{padding:11px 13px;border-radius:10px;margin:0 0 14px;background:#fff1f0;color:#a8332d;border:1px solid #f6d0cd}
+        .error{padding:11px 13px;border-radius:10px;margin:0 0 14px;background:#fff1f0;color:#a8332d;border:1px solid #f6d0cd}.error.success{background:#e8fbf5;color:#145d4c;border-color:#b8eadb}
         label{display:block;font-size:14px;font-weight:650;color:#39354a;margin:17px 0 7px}input{width:100%;height:49px;padding:0 14px;border:1px solid #ded9e8;border-radius:10px;font-size:15px;color:#28213a;outline:none;transition:.18s}input:focus{border-color:#8054bd;box-shadow:0 0 0 4px #8054bd20}
         .password-wrap{position:relative}.password-wrap input{padding-right:72px}.show-password{position:absolute;right:8px;top:7px;height:35px;border:0;border-radius:8px;background:#f4effa;color:#69429d;padding:0 10px;font-weight:650;cursor:pointer}
         .submit{width:100%;height:51px;border:0;border-radius:10px;margin-top:24px;background:linear-gradient(100deg,#583092,#7746b2);color:#fff;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 8px 18px #65409b30}.login{margin:22px 0 0;text-align:center;color:#777386;font-size:14px}a{color:#68409e;font-weight:700;text-decoration:none}a:hover{text-decoration:underline}
@@ -90,6 +210,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     .brand,.welcome-copy,.note{z-index:2}.brand{color:#f0f5ff}.brand-mark{background:linear-gradient(145deg,#132f3d,#29234b);color:#83f6e7;box-shadow:0 0 16px #5cead733}.brand:hover .brand-mark{transform:rotate(-10deg) scale(1.08)}
     .auth-neon-lines{position:absolute;z-index:1;inset:0;width:100%;height:100%;pointer-events:none;opacity:.72}.auth-neon-lines path{fill:none;stroke:#72f2e5;stroke-width:1.5;stroke-dasharray:8 14;filter:drop-shadow(0 0 6px #62e9dc);animation:auth-line-flow 22s linear infinite}.auth-neon-lines path:nth-child(2){stroke:#a78cff;stroke-dasharray:2 16;animation-duration:29s;animation-direction:reverse}@keyframes auth-line-flow{to{stroke-dashoffset:-420}}.welcome-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.24;filter:saturate(1.3) hue-rotate(215deg) brightness(.8);mix-blend-mode:screen;pointer-events:none}.welcome-art{position:absolute;z-index:1;width:95%;max-width:650px;right:-16%;bottom:7%;opacity:.18;pointer-events:none;animation:art-drift 9s ease-in-out infinite}.welcome-copy{animation:auth-rise .65s .12s both}.eyebrow{color:#82f0df}.welcome h1{color:#f3f6ff}.welcome-copy p{color:#b9c8dd}.note{background:#132036;border:1px solid #536989;color:#d9e6f8;animation:auth-rise .65s .28s both}
     .form-side{background:linear-gradient(145deg,#10192a,#0c1424);animation:auth-form .65s .15s both}.form-side h2{color:#f0f4ff}.subtitle,.login{color:#a8b7d0}.error{color:#ffc2d0;background:#351b2b;border-color:#713957}
+    .error.success{background:#102e2b;border-color:#286d65;color:#adf8e8}.secondary{display:inline-flex;justify-content:center;align-items:center;min-height:44px;margin-top:12px;padding:0 16px;border:1px solid #405675;border-radius:10px;background:#111c2e;color:#8ceee2;font-weight:750;cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s}.secondary:hover{transform:translateY(-1px);border-color:#72eadc;box-shadow:0 0 17px #62dfd522}
     .form-side label{color:#d6e0f0}.form-side input{background:#0a1220;border-color:#344461;color:#eef5ff;transition:border-color .2s,box-shadow .2s,transform .2s}.form-side input::placeholder{color:#7587a4}.form-side input:hover{border-color:#6077a0}.form-side input:focus{border-color:#71e9dc;box-shadow:0 0 0 3px #71e9dc25,0 0 20px #71e9dc1b;transform:translateY(-1px)}
     .show-password{background:#152b3c;color:#8bf4e4;transition:transform .2s,box-shadow .2s}.show-password:hover{transform:translateY(-1px);box-shadow:0 0 15px #70eadb33}.submit{background:linear-gradient(105deg,#61e9d9,#8b91ff);color:#07111d;box-shadow:0 0 23px #61e9d933;background-size:180% 180%;transition:background-position .35s,transform .2s,box-shadow .2s}.submit:hover{background-position:100% 0;transform:translateY(-2px);box-shadow:0 0 28px #61e9d966}.login a{color:#84f1e3;transition:color .2s,text-shadow .2s}.login a:hover{color:#c1fff3;text-shadow:0 0 12px #69ebdb77}
     @keyframes auth-enter{from{opacity:0;transform:translateY(16px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes auth-rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}@keyframes auth-form{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:translateX(0)}}@keyframes art-drift{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-12px) rotate(1deg)}}
@@ -110,17 +231,36 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <p class="note">✨ Everyone is welcome. Register and log in to get started.</p>
         </section>
         <section class="form-side">
-            <h2>Create your account</h2><p class="subtitle">Set up your student profile in just a few steps.</p>
-            <?php if ($message): ?><p class="error" role="alert"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
-            <form method="post">
-                <label for="name">Full name</label><input id="name" type="text" name="name" autocomplete="name" maxlength="150" required value="<?= htmlspecialchars($_POST['name'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="Your name">
-                <label for="email">Email address</label><input id="email" type="email" name="email" autocomplete="email" required value="<?= htmlspecialchars($_POST['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="you@example.com">
-                <label for="password">Password</label><div class="password-wrap"><input id="password" type="password" name="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters"><button class="show-password" type="button" id="togglePassword">Show</button></div>
-                <button class="submit" type="submit">Create account</button>
-            </form>
+            <h2><?= $step === 'verify' ? 'Verify your email' : 'Create your account' ?></h2>
+            <p class="subtitle"><?= $step === 'verify' ? 'Enter the 6-digit code we sent to your inbox.' : 'Start with your email and password. No name is needed.' ?></p>
+            <?php if ($message): ?><p class="error<?= $messageType === 'success' ? ' success' : '' ?>" role="<?= $messageType === 'success' ? 'status' : 'alert' ?>"><?= registrationEscape($message) ?></p><?php endif; ?>
+            <?php if ($step === 'verify'): ?>
+                <form method="post" autocomplete="off">
+                    <input type="hidden" name="csrf_token" value="<?= registrationEscape($_SESSION['csrf_token']) ?>">
+                    <input type="hidden" name="action" value="verify_code">
+                    <label for="email">Email address</label><input id="email" type="email" name="email" value="<?= registrationEscape($emailValue) ?>" readonly>
+                    <label for="verification_code">Verification code</label><input id="verification_code" type="text" name="verification_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="6-digit code">
+                    <button class="submit" type="submit">Verify and create account</button>
+                </form>
+                <form method="post">
+                    <input type="hidden" name="csrf_token" value="<?= registrationEscape($_SESSION['csrf_token']) ?>">
+                    <input type="hidden" name="action" value="resend_code">
+                    <input type="hidden" name="email" value="<?= registrationEscape($emailValue) ?>">
+                    <button class="secondary" type="submit">Resend code</button>
+                    <a class="secondary" href="register.php">Use a different email</a>
+                </form>
+            <?php else: ?>
+                <form method="post" autocomplete="on">
+                    <input type="hidden" name="csrf_token" value="<?= registrationEscape($_SESSION['csrf_token']) ?>">
+                    <input type="hidden" name="action" value="send_code">
+                    <label for="email">Email address</label><input id="email" type="email" name="email" autocomplete="email" maxlength="150" required value="<?= registrationEscape($emailValue) ?>" placeholder="you@example.com">
+                    <label for="password">Password</label><div class="password-wrap"><input id="password" type="password" name="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters"><button class="show-password" type="button" id="togglePassword">Show</button></div>
+                    <button class="submit" type="submit">Send verification code</button>
+                </form>
+            <?php endif; ?>
             <p class="login">Already have an account? <a href="login.php">Log in</a></p>
         </section>
     </main>
-    <script>document.getElementById('togglePassword').addEventListener('click',function(){const input=document.getElementById('password'),showing=input.type==='password';input.type=showing?'text':'password';this.textContent=showing?'Hide':'Show';});</script>
-</body>
+    <script>const togglePassword=document.getElementById('togglePassword');if(togglePassword)togglePassword.addEventListener('click',function(){const input=document.getElementById('password'),showing=input.type==='password';input.type=showing?'text':'password';this.textContent=showing?'Hide':'Show';});</script>
+<script src="assets/page-navigation.js" defer></script></body>
 </html>

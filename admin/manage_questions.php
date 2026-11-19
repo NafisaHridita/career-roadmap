@@ -47,4 +47,4 @@ $stmt->execute(); $questions = $stmt->get_result();
 <table><thead><tr><th>Question</th><th>Category</th><th>Options</th><th>Status</th><th>Actions</th></tr></thead><tbody>
 <?php if ($questions->num_rows === 0): ?><tr><td colspan="5">No questions need review.</td></tr><?php else: while ($q = $questions->fetch_assoc()): ?><tr><td><?= h($q['question_text']) ?></td><td><?= h($q['category'] ?? '') ?></td><td><?= (int)$q['option_count'] ?></td><td class="badge"><?= h(ucfirst($q['status'])) ?></td><td class="actions-cell"><div class="question-actions"><a class="action-edit" href="edit_question.php?id=<?= (int)$q['question_id'] ?>">Edit</a>
 <form class="inline" method="post"><input type="hidden" name="question_id" value="<?= (int)$q['question_id'] ?>"><button name="action" value="approved">Approve</button><button name="action" value="rejected">Reject</button><button name="action" value="delete" onclick="return confirm('Delete this question and its options?')">Delete</button></form></div></td></tr><?php endwhile; endif; ?>
-</tbody></table></main></body></html>
+</tbody></table></main><script src="../assets/page-navigation.js" defer></script></body></html>

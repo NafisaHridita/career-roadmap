@@ -196,5 +196,5 @@ document.getElementById('quizForm').addEventListener('submit', function (event) 
 </script>
 <?php endif; ?>
 <div class="home-row"><a href="dashboard.php" class="home-button">⌂ Home</a></div>
-</body>
+<script src="../assets/page-navigation.js" defer></script></body>
 </html>

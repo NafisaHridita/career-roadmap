@@ -45,7 +45,8 @@ vi. Import the `database.sql` file.
 vii. Copy `config/db.example.php` to `config/db.php` and set your MySQL user, password and database name.
 viii. Run the setup script once from the project folder: `C:\xampp\php\php.exe tools\setup.php`. It asks for the first admin's name, email and password, then adds sample careers and approved quiz questions (it skips anything that already exists).
 ix. Copy `.env.example` to `.env` and add your xAI API key as `XAI_API_KEY`. Create a key at [console.x.ai](https://console.x.ai/).
-x. Run the project through localhost.
+x. Configure authenticated SMTP in `.env` (`MAIL_SMTP_HOST`, `MAIL_SMTP_PORT`, `MAIL_SMTP_SECURITY`, `MAIL_SMTP_USERNAME`, `MAIL_SMTP_PASSWORD`, and a matching `MAIL_FROM_ADDRESS`). Registration codes and password-reset links use this connection; XAMPP `sendmail` is not needed. For Gmail, use a Google App Password. Outlook.com SMTP requires OAuth2, so use a different SMTP sender that supports SMTP AUTH unless OAuth2 has been configured.
+xi. Run the project through localhost.
 
 7. Local Project URL
 
@@ -67,8 +68,8 @@ Career and recommendation tables are created by the application when their modul
 10. How It Works
 
 **Accounts and roles**
-- A student registers on `register.php`. The account is saved as `pending` and the student can log in right away.
-- The admin reviews new registrations under Student Approvals. Approving moves the student to the Admin Student List.
+- A student enters an email and password on `register.php`; no name is required. A 6-digit code is emailed and must be entered within 10 minutes to finish registration. The display name starts from the email prefix and can be edited in the profile.
+- Verified students can log in right away. Admin Student Approvals is only the admin's personal list workflow: saving a registration adds it to the Admin Student List and does not approve or block login.
 - `login.php` checks the hashed password and sends each user to the student or admin dashboard by role. Every student and admin page checks the session role and redirects to the login page if it does not match.
 
 **Student journey**

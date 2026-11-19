@@ -8,6 +8,9 @@ $message = "";
 if (isset($_GET['registered'])) {
     $message = "Registration successful! You can log in now.";
 }
+if (isset($_GET['account_deleted'])) {
+    $message = "Your account and associated quiz data have been deleted.";
+}
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
@@ -131,6 +134,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <div class="password-wrap"><input id="password" type="password" name="password" autocomplete="current-password" required placeholder="Enter your password"><button class="show-password" type="button" id="togglePassword">Show</button></div>
                 <button class="submit" type="submit">Log in</button>
             </form>
+            <p class="register" style="margin-top:14px"><a href="forgot_password.php">Forgot password?</a></p>
             <p class="register">New to CareerRoadmap? <a href="register.php">Create an account</a></p>
         </section>
     </main>
@@ -142,5 +146,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             this.textContent = showing ? 'Hide' : 'Show';
         });
     </script>
-</body>
+<script src="assets/page-navigation.js" defer></script></body>
 </html>
