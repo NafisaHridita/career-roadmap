@@ -3,7 +3,7 @@ session_start();
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'student') { header('Location: ../login.php'); exit(); }
 require_once '../config/db.php';
 require_once '../includes/module_helpers.php';
-$userId=(int)$_SESSION['user_id']; $error=''; $message=$_SESSION['student_profile_flash']??''; unset($_SESSION['student_profile_flash']); $viewOnly=(($_GET['view']??'')==='1');
+$userId=(int)$_SESSION['user_id']; $error=''; $message=$_SESSION['student_profile_flash']??''; unset($_SESSION['student_profile_flash']); $viewOnly=(($_GET['edit']??'')!=='1');
 $uploadDir=__DIR__.'/../assets/uploads/student_profiles';
 if (!is_dir($uploadDir)) @mkdir($uploadDir,0755,true);
 if (!isset($_SESSION['student_profile_token'])) $_SESSION['student_profile_token']=bin2hex(random_bytes(32));
